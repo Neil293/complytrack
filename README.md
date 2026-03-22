@@ -6,8 +6,14 @@ A single-file progressive web app for tracking water system compliance assets, g
 
 ## Getting Started
 
-1. Download `index.html`
-2. Open it in any modern browser (Chrome, Safari, Edge, Firefox)
+**Option A — Use the live app (no download required):**
+
+👉 **https://neil293.github.io/complytrack/**
+
+**Option B — Run locally:**
+
+1. Download `index.html` and `data.js` (both must be in the same folder)
+2. Open `index.html` in any modern browser (Chrome, Safari, Edge, Firefox)
 3. Login with default credentials:
    - **Username:** `admin`
    - **Password:** `admin`
@@ -138,6 +144,12 @@ To reset all data back to defaults (IRT seed data):
 Source code and latest releases are available on GitHub:
 
 **https://github.com/Neil293/complytrack**
+
+## Live App
+
+Access the app directly in your browser (no download required):
+
+**https://neil293.github.io/complytrack/**
 
 ---
 
