@@ -133,6 +133,14 @@ To reset all data back to defaults (IRT seed data):
 
 ---
 
+## Repository
+
+Source code and latest releases are available on GitHub:
+
+**https://github.com/Neil293/complytrack**
+
+---
+
 ## Files
 
 | File | Description |
