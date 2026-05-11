@@ -81,7 +81,6 @@ const DCOMPLEXES=[
   {id:'cx_irt_05',clientId:'c4',name:'Sarah Claydon Milton',            addr:'130 Princes Hwy',      suburb:'Milton',           state:'NSW',postcode:'2538',contact:'',phone:'',email:'',notes:''},
   {id:'cx_irt_06',clientId:'c4',name:'Tarrawanna Gardens',              addr:'2 Foothills Rd',       suburb:'Tarrawanna',       state:'NSW',postcode:'2518',contact:'',phone:'',email:'',notes:''},
   {id:'cx_irt_07',clientId:'c4',name:'Five Islands Court',              addr:'179 Five Islands Rd',  suburb:'Cringila',         state:'NSW',postcode:'2502',contact:'',phone:'',email:'',notes:''},
-  {id:'cx_irt_08',clientId:'c4',name:'William Beach Gardens',           addr:'260 Kanahooka Rd',     suburb:'Kanahooka',        state:'NSW',postcode:'2530',contact:'',phone:'',email:'',notes:''},
   {id:'cx_irt_09',clientId:'c4',name:'Culburra Beach',                  addr:'110 The Lake Circuit', suburb:'Culburra Beach',   state:'NSW',postcode:'2540',contact:'',phone:'',email:'',notes:''},
   {id:'cx_irt_10',clientId:'c4',name:'St Georges Basin',                addr:'1 Meriton St',         suburb:'St Georges Basin', state:'NSW',postcode:'2540',contact:'',phone:'',email:'',notes:''},
   {id:'cx_irt_11',clientId:'c4',name:'IRT Nowra',                       addr:'42-60 Worrigee St',    suburb:'Nowra',            state:'NSW',postcode:'2541',contact:'',phone:'',email:'',notes:''},
