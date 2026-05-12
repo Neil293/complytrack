@@ -44,10 +44,11 @@ A single-file progressive web app for tracking water system compliance assets, g
   2. Select Complex
   3. Date & Job (service type, job number, single day or range)
   4. Technician
-  5. Systems (select warm water systems and TMVs)
-  6. Summary (preview before generating)
-  7. Review & Generate
+  5. Systems (select assets relevant to the service type)
+  6. Preview (review report contents before generating)
+  7. Summary & Generate
 - **Report types:** Service Report, Reactive Service, Warm Water, TMV, Pump Service, Legionella Disinfection Certificate, Other
+- **Pump Service** — Step 5 shows Sewer Pump and Stormwater Pump assets from the register; tap to select, set pass/fail per pump, or add pumps manually
 - **Legionella Certificate** includes: company letterhead, disinfection details, WWS table, TMV table, method used, serviced by section
 - All reports use consistent branded layout with company logo and colours
 - Print to PDF via browser print dialog
@@ -73,7 +74,7 @@ A single-file progressive web app for tracking water system compliance assets, g
 - **🏢 Clients** — manage clients with colour coding
 - **🏷 Asset Types** — customise asset types with icons and colours
 - **📄 Report Template** — configure report sections and branding
-- **⚙️ Data** — export CSV, backup JSON, restore from backup, reset all data
+- **⚙️ Data** — export CSV, backup JSON, restore from backup, reset all data, cloud sync
 
 ---
 
@@ -81,7 +82,7 @@ A single-file progressive web app for tracking water system compliance assets, g
 
 The app comes pre-loaded with:
 - **Client:** IRT Group
-- **20 Complexes:** All IRT sites across NSW and ACT
+- **41 Complexes:** All IRT sites across NSW and ACT
 - **124 TMV Assets:** William Beach Gardens (Kanahooka NSW) — all Rada 215 valves
 
 ---
@@ -92,6 +93,21 @@ All data is stored in **browser localStorage**. This means:
 - Data persists between sessions in the same browser
 - Opening the file in a different browser starts fresh with seed data
 - To transfer data between devices: **Settings → ⚙️ Data → 💾 Backup JSON**, then restore on the new device
+
+### Cloud Sync (optional)
+
+Connect a Firebase project to sync data automatically between devices:
+
+1. Create a **Firebase Auth** user in your Firebase Console (Authentication → Users → Add user)
+2. Go to **Settings → ⚙️ Data → ☁️ Cloud Sync**
+3. Paste your `firebaseConfig` JSON (from Firebase Console → Project Settings → Your apps → Web)
+4. Enter the Firebase Auth email and password → **Save & Connect**
+
+After connecting, the app syncs automatically 30 seconds after any change. On login, if cloud data is newer than local data, you will be prompted to load from cloud.
+
+- Firebase project: `complytrack-6ac7e` (australia-southeast1)
+- Firestore path: `complytrack/{uid}` — one document per user account
+- Free-tier read/write usage: ~1 read + 3–5 writes per session
 
 ---
 
@@ -158,6 +174,7 @@ Access the app directly in your browser (no download required):
 | File | Description |
 |------|-------------|
 | `index.html` | The complete app — open this in a browser |
+| `data.js` | Seed data and app config (edit to rebrand) |
 | `README.md` | This file |
 | `ComplyTrack_Asset_Import_Guide.md` | Quick import reference |
 | `ComplyTrack_Asset_Import_Instructions.md` | Full detailed import instructions |
@@ -166,9 +183,9 @@ Access the app directly in your browser (no download required):
 
 ## Technical
 
-- Pure HTML, CSS and JavaScript — no frameworks, no dependencies
-- Single file — everything including the company logo is embedded
-- Works offline
+- Pure HTML, CSS and JavaScript — no frameworks, no build step
+- Two files — `index.html` (app) + `data.js` (seed data)
+- Works fully offline — Firebase SDK loaded from CDN but not required
 - Mobile-friendly responsive design
 - Compatible with Chrome, Safari, Edge, Firefox
 
