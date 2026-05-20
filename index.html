@@ -2480,7 +2480,7 @@ function renderWizS5(p){
         <div><div style="font-size:.67rem;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--tx3)">${wizData.singleDay?'Service Date':'Date Range'}</div>
           <div style="font-size:.86rem;font-weight:600;margin-top:.1rem">${wizData.singleDay?from:`${from} — ${to}`}</div></div>
         <div><div style="font-size:.67rem;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--tx3)">Service Type</div>
-          <div style="font-size:.86rem;font-weight:600;margin-top:.1rem">${(wizData.serviceType==='warmwater'?'🌡 Warm Water '+(wizData.wwServiceInterval==='12month'?'12 Month (Major)':'6 Month (Minor)'):({{standard:'📋 Service Report',reactive:'⚡ Reactive Service',legionella:'🦠 Legionella Certificate',tmv:'🚿 TMV Service',pump:'🔧 Pump Service',other:'📄 Other'}}[wizData.serviceType]||'—'))}</div></div>
+          <div style="font-size:.86rem;font-weight:600;margin-top:.1rem">${(wizData.serviceType==='warmwater'?'🌡 Warm Water '+(wizData.wwServiceInterval==='12month'?'12 Month (Major)':'6 Month (Minor)'):(({standard:'📋 Service Report',reactive:'⚡ Reactive Service',legionella:'🦠 Legionella Certificate',tmv:'🚿 TMV Service',pump:'🔧 Pump Service',other:'📄 Other'})[wizData.serviceType]||'—'))}</div></div>
         <div><div style="font-size:.67rem;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--tx3)">Job Number</div>
           <div style="font-size:.86rem;font-weight:600;margin-top:.1rem;font-family:monospace">${wizData.jobNumber||'<span style="color:var(--tx3);font-family:inherit;font-weight:400">Not set</span>'}</div></div>
         <div><div style="font-size:.67rem;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--tx3)">Assets</div>
