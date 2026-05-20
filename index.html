@@ -3467,13 +3467,7 @@ Please find attached our ${svcLabel} for ${d.cx?d.cx.name:'your site'}${cxAddrSt
 ASSETS SERVICED
 ${al}
 
-Please do not hesitate to contact us if you have any questions regarding this report.
-
-Kind regards,
-${tech.name||''}
-${tech.company||settings.co||''}
-${tech.phone||tech.mobile||settings.ph||''}
-${tech.email||settings.em||''}`.trim();
+Please do not hesitate to contact us if you have any questions regarding this report.`.trim();
 
   $('e-to').value=cl.email||'';$('e-cc').value='';
   $('e-subj').value=tpl(settings.emailSubj||'{{service_type}} — {{complex}} — {{service_date}}');
