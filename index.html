@@ -565,6 +565,10 @@ select.ctrl{padding:.42rem .65rem;border:1.5px solid var(--bd);border-radius:8px
         <div class="fg"><label>Next Service Date</label><input type="date" id="s-next"></div>
         <div class="fg full"><label>Notes / Observations</label><textarea id="s-notes" placeholder="Work done, readings, faults…"></textarea></div>
         <div class="fg full"><label>Parts / Materials Used</label><input type="text" id="s-parts" placeholder="e.g. Anode replaced, UV lamp"></div>
+        <div id="s-temps-row" class="fg2" style="display:none">
+          <div class="fg"><label>Set-Point Temp (°C)</label><input type="number" id="s-temp-set" placeholder="e.g. 65" step="0.1" min="0" max="100"></div>
+          <div class="fg"><label>Return Temp (°C)</label><input type="number" id="s-temp-ret" placeholder="e.g. 60" step="0.1" min="0" max="100"></div>
+        </div>
       </div>
     </div>
     <div class="mfoot">
@@ -1363,6 +1367,9 @@ function openSvc(id){
   $('s-aid').value=id;
   $('s-date').value=new Date().toISOString().split('T')[0];
   $('s-result').value='Pass';$('s-notes').value='';$('s-parts').value='';
+  const isWWS=a.type==='Warm Water System';
+  $('s-temps-row').style.display=isWWS?'':'none';
+  $('s-temp-set').value='';$('s-temp-ret').value='';
   const nxt=nxtSvcDate({...a,svcDate:new Date().toISOString().split('T')[0]});
   $('s-next').value=nxt?nxt.toISOString().split('T')[0]:'';
   $('s-tech').innerHTML=users.map(u=>`<option value="${u.id}"${u.id===CU.id?' selected':''}>${u.name}</option>`).join('');
@@ -1374,6 +1381,8 @@ function saveSvc(){
   if(!date||!result){toast('Fill in date and result');return;}
   const i=assets.findIndex(x=>x.id===id);if(i<0)return;
   const rec={date,result,tech:$('s-tech').value,notes:$('s-notes').value.trim(),parts:$('s-parts').value.trim()};
+  const tSet=$('s-temp-set').value.trim(),tRet=$('s-temp-ret').value.trim();
+  if(tSet||tRet) rec.temps={setPoint:tSet,returnTemp:tRet};
   if(!assets[i].log)assets[i].log=[];
   assets[i].log.push(rec);
   assets[i].svcDate=date;assets[i].result=result;
@@ -1997,24 +2006,42 @@ function renderWizS4b(p){
     return regWWS.map(a=>{
       const sel=selectedIds.has(a.id);
       const item=wizData.wwsItems.find(w=>w.assetId===a.id);
-      return `<div style="display:flex;align-items:stretch;gap:0;border-radius:8px;border:2px solid ${sel?'var(--blue)':'var(--bd)'};background:${sel?'#f0f6ff':'#fff'};margin-bottom:.45rem;overflow:hidden;cursor:pointer" onclick="toggleAsset('${a.id}')">
-        <!-- Tick -->
-        <div style="width:44px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:${sel?'var(--blue)':'var(--sf2)'};font-size:1.1rem;color:#fff">
-          ${sel?'✓':''}
+      return `<div style="display:flex;flex-direction:column;border-radius:8px;border:2px solid ${sel?'var(--blue)':'var(--bd)'};background:${sel?'#f0f6ff':'#fff'};margin-bottom:.45rem;overflow:hidden">
+        <!-- Main row -->
+        <div style="display:flex;align-items:stretch;gap:0;cursor:pointer" onclick="toggleAsset('${a.id}')">
+          <!-- Tick -->
+          <div style="width:44px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:${sel?'var(--blue)':'var(--sf2)'};font-size:1.1rem;color:#fff">
+            ${sel?'✓':''}
+          </div>
+          <!-- Asset info -->
+          <div style="flex:1;padding:.55rem .75rem;min-width:0">
+            <div style="font-weight:700;font-size:.87rem;font-family:monospace">${a.ref} <span style="font-family:inherit;font-weight:400;color:var(--tx3);font-size:.8rem">${[a.make,a.model].filter(Boolean).join(' ')||''}</span></div>
+            <div style="font-size:.75rem;color:var(--tx3)">${a.loc||''}${a.serial?' · SN: '+a.serial:''}</div>
+          </div>
+          <!-- Result selector (only when selected) -->
+          ${sel?`<div style="display:flex;align-items:center;padding:.4rem .6rem;gap:.4rem" onclick="event.stopPropagation()">
+            <select style="padding:.35rem .55rem;border:1.5px solid var(--bd);border-radius:6px;font:inherit;font-size:.81rem;outline:none;font-weight:600;color:${resultColor(item?item.result:'Pass')}"
+              onchange="const idx=wizData.wwsItems.findIndex(w=>w.assetId==='${a.id}');if(idx>=0)wizData.wwsItems[idx].result=this.value;this.style.color=this.value==='Pass'?'var(--green)':this.value==='Fail'?'var(--red)':'var(--amber)'">
+              <option${(item&&item.result)==='Pass'?' selected':''}>Pass</option>
+              <option${(item&&item.result)==='Fail'?' selected':''}>Fail</option>
+              <option${(item&&item.result)==='Repaired'?' selected':''}>Repaired</option>
+            </select>
+          </div>`:''}
         </div>
-        <!-- Asset info -->
-        <div style="flex:1;padding:.55rem .75rem;min-width:0">
-          <div style="font-weight:700;font-size:.87rem;font-family:monospace">${a.ref} <span style="font-family:inherit;font-weight:400;color:var(--tx3);font-size:.8rem">${[a.make,a.model].filter(Boolean).join(' ')||''}</span></div>
-          <div style="font-size:.75rem;color:var(--tx3)">${a.loc||''}${a.serial?' · SN: '+a.serial:''}</div>
-        </div>
-        <!-- Result selector (only when selected) -->
-        ${sel?`<div style="display:flex;align-items:center;padding:.4rem .6rem;gap:.4rem" onclick="event.stopPropagation()">
-          <select style="padding:.35rem .55rem;border:1.5px solid var(--bd);border-radius:6px;font:inherit;font-size:.81rem;outline:none;font-weight:600;color:${resultColor(item?item.result:'Pass')}"
-            onchange="const idx=wizData.wwsItems.findIndex(w=>w.assetId==='${a.id}');if(idx>=0)wizData.wwsItems[idx].result=this.value;this.style.color=this.value==='Pass'?'var(--green)':this.value==='Fail'?'var(--red)':'var(--amber)'">
-            <option${(item&&item.result)==='Pass'?' selected':''}>Pass</option>
-            <option${(item&&item.result)==='Fail'?' selected':''}>Fail</option>
-            <option${(item&&item.result)==='Repaired'?' selected':''}>Repaired</option>
-          </select>
+        <!-- Temp readings row (only when selected) -->
+        ${sel?`<div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;padding:.45rem .75rem;border-top:1px solid #d0daf0;background:#e8f0fe" onclick="event.stopPropagation()">
+          <div>
+            <div style="font-size:.7rem;font-weight:700;color:#555;margin-bottom:.2rem;text-transform:uppercase;letter-spacing:.3px">Set-Point Temp (°C)</div>
+            <input type="number" placeholder="e.g. 65" step="0.1" value="${item&&item.tempSet!=null?item.tempSet:''}"
+              style="width:100%;box-sizing:border-box;padding:.32rem .5rem;border:1px solid var(--bd);border-radius:5px;font:inherit;font-size:.83rem;outline:none"
+              oninput="const idx=wizData.wwsItems.findIndex(w=>w.assetId==='${a.id}');if(idx>=0)wizData.wwsItems[idx].tempSet=this.value">
+          </div>
+          <div>
+            <div style="font-size:.7rem;font-weight:700;color:#555;margin-bottom:.2rem;text-transform:uppercase;letter-spacing:.3px">Return Temp (°C)</div>
+            <input type="number" placeholder="e.g. 60" step="0.1" value="${item&&item.tempRet!=null?item.tempRet:''}"
+              style="width:100%;box-sizing:border-box;padding:.32rem .5rem;border:1px solid var(--bd);border-radius:5px;font:inherit;font-size:.83rem;outline:none"
+              oninput="const idx=wizData.wwsItems.findIndex(w=>w.assetId==='${a.id}');if(idx>=0)wizData.wwsItems[idx].tempRet=this.value">
+          </div>
         </div>`:''}
       </div>`;
     }).join('');
@@ -2024,20 +2051,36 @@ function renderWizS4b(p){
   function renderManualWWS(){
     return wizData.wwsItems.filter(w=>!w.fromRegister).map((item,mi)=>{
       const i=wizData.wwsItems.indexOf(item);
-      return `<div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:.4rem;align-items:center;padding:.5rem;background:#fffef5;border-radius:8px;border:1px solid var(--bd);border-left:3px solid var(--amber);margin-bottom:.4rem">
-        <input type="text" placeholder="Ref / ID" value="${item.ref||''}"
-          style="padding:.4rem .6rem;border:1px solid var(--bd);border-radius:6px;font:inherit;font-size:.82rem;outline:none"
-          oninput="wizData.wwsItems[${i}].ref=this.value">
-        <input type="text" placeholder="Make / Model" value="${item.model||''}"
-          style="padding:.4rem .6rem;border:1px solid var(--bd);border-radius:6px;font:inherit;font-size:.82rem;outline:none"
-          oninput="wizData.wwsItems[${i}].model=this.value">
-        <select style="padding:.4rem .6rem;border:1px solid var(--bd);border-radius:6px;font:inherit;font-size:.82rem;outline:none"
-          onchange="wizData.wwsItems[${i}].result=this.value">
-          <option${(item.result||'')==='Pass'?' selected':''}>Pass</option>
-          <option${(item.result||'')==='Fail'?' selected':''}>Fail</option>
-          <option${(item.result||'')==='Repaired'?' selected':''}>Repaired</option>
-        </select>
-        <button onclick="wizData.wwsItems.splice(${i},1);rerenderS4b()" class="btn bd2 btn-sm" style="padding:.35rem .5rem">✕</button>
+      return `<div style="background:#fffef5;border-radius:8px;border:1px solid var(--bd);border-left:3px solid var(--amber);margin-bottom:.4rem;overflow:hidden">
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:.4rem;align-items:center;padding:.5rem">
+          <input type="text" placeholder="Ref / ID" value="${item.ref||''}"
+            style="padding:.4rem .6rem;border:1px solid var(--bd);border-radius:6px;font:inherit;font-size:.82rem;outline:none"
+            oninput="wizData.wwsItems[${i}].ref=this.value">
+          <input type="text" placeholder="Make / Model" value="${item.model||''}"
+            style="padding:.4rem .6rem;border:1px solid var(--bd);border-radius:6px;font:inherit;font-size:.82rem;outline:none"
+            oninput="wizData.wwsItems[${i}].model=this.value">
+          <select style="padding:.4rem .6rem;border:1px solid var(--bd);border-radius:6px;font:inherit;font-size:.82rem;outline:none"
+            onchange="wizData.wwsItems[${i}].result=this.value">
+            <option${(item.result||'')==='Pass'?' selected':''}>Pass</option>
+            <option${(item.result||'')==='Fail'?' selected':''}>Fail</option>
+            <option${(item.result||'')==='Repaired'?' selected':''}>Repaired</option>
+          </select>
+          <button onclick="wizData.wwsItems.splice(${i},1);rerenderS4b()" class="btn bd2 btn-sm" style="padding:.35rem .5rem">✕</button>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.4rem;padding:.4rem .5rem .5rem;border-top:1px solid #f0e8c0">
+          <div>
+            <div style="font-size:.7rem;font-weight:700;color:#555;margin-bottom:.2rem;text-transform:uppercase;letter-spacing:.3px">Set-Point Temp (°C)</div>
+            <input type="number" placeholder="e.g. 65" step="0.1" value="${item.tempSet||''}"
+              style="width:100%;box-sizing:border-box;padding:.32rem .5rem;border:1px solid var(--bd);border-radius:5px;font:inherit;font-size:.83rem;outline:none"
+              oninput="wizData.wwsItems[${i}].tempSet=this.value">
+          </div>
+          <div>
+            <div style="font-size:.7rem;font-weight:700;color:#555;margin-bottom:.2rem;text-transform:uppercase;letter-spacing:.3px">Return Temp (°C)</div>
+            <input type="number" placeholder="e.g. 60" step="0.1" value="${item.tempRet||''}"
+              style="width:100%;box-sizing:border-box;padding:.32rem .5rem;border:1px solid var(--bd);border-radius:5px;font:inherit;font-size:.83rem;outline:none"
+              oninput="wizData.wwsItems[${i}].tempRet=this.value">
+          </div>
+        </div>
       </div>`;
     }).join('');
   }
@@ -2093,12 +2136,17 @@ function toggleAsset(assetId){
     wizData.wwsItems.splice(already,1);
   } else {
     const a=assets.find(x=>x.id==assetId);
-    if(a) wizData.wwsItems.push({
-      assetId:a.id, ref:a.ref,
-      model:[a.make,a.model].filter(Boolean).join(' '),
-      loc:a.loc||'', serial:a.serial||'',
-      result:'Pass', fromRegister:true
-    });
+    if(a){
+      const lastTemps=a.log&&[...a.log].reverse().find(l=>l.temps);
+      wizData.wwsItems.push({
+        assetId:a.id, ref:a.ref,
+        model:[a.make,a.model].filter(Boolean).join(' '),
+        loc:a.loc||'', serial:a.serial||'',
+        result:'Pass', fromRegister:true,
+        tempSet:lastTemps?lastTemps.temps.setPoint:'',
+        tempRet:lastTemps?lastTemps.temps.returnTemp:''
+      });
+    }
   }
   rerenderS4b();
 }
@@ -3015,8 +3063,8 @@ function buildWarmWaterRpt(d){
             <td style="padding:.45rem .6rem;border:1px solid #dde3ec;font-size:.83rem;font-family:monospace;font-weight:600">${ref}</td>
             <td style="padding:.45rem .6rem;border:1px solid #dde3ec;font-size:.83rem">${model}</td>
             <td style="padding:.45rem .6rem;border:1px solid #dde3ec;font-size:.83rem">${loc||'—'}</td>
-            <td style="padding:.45rem .6rem;border:1px solid #dde3ec;font-size:.83rem;color:#555">—°C</td>
-            <td style="padding:.45rem .6rem;border:1px solid #dde3ec;font-size:.83rem;color:#555">—°C</td>
+            <td style="padding:.45rem .6rem;border:1px solid #dde3ec;font-size:.83rem;color:#555">${w.tempSet!=null&&w.tempSet!==''?w.tempSet+'°C':'—'}</td>
+            <td style="padding:.45rem .6rem;border:1px solid #dde3ec;font-size:.83rem;color:#555">${w.tempRet!=null&&w.tempRet!==''?w.tempRet+'°C':'—'}</td>
             <td style="padding:.45rem .6rem;border:1px solid #dde3ec;font-size:.83rem;font-weight:700;color:${rc}">${w.result||'—'}</td>
           </tr>`;
         }).join(''):`<tr><td colspan="6" style="padding:.65rem .75rem;border:1px solid #dde3ec;font-size:.83rem;color:#999;text-align:center">No systems recorded</td></tr>`}
