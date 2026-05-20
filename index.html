@@ -2021,7 +2021,7 @@ function renderWizS4b(p){
           <!-- Result selector (only when selected) -->
           ${sel?`<div style="display:flex;align-items:center;padding:.4rem .6rem;gap:.4rem" onclick="event.stopPropagation()">
             <select style="padding:.35rem .55rem;border:1.5px solid var(--bd);border-radius:6px;font:inherit;font-size:.81rem;outline:none;font-weight:600;color:${resultColor(item?item.result:'Pass')}"
-              onchange="const idx=wizData.wwsItems.findIndex(w=>w.assetId==='${a.id}');if(idx>=0)wizData.wwsItems[idx].result=this.value;this.style.color=this.value==='Pass'?'var(--green)':this.value==='Fail'?'var(--red)':'var(--amber)'">
+              onchange="const idx=wizData.wwsItems.findIndex(w=>w.assetId=='${a.id}');if(idx>=0)wizData.wwsItems[idx].result=this.value;this.style.color=this.value==='Pass'?'var(--green)':this.value==='Fail'?'var(--red)':'var(--amber)'">
               <option${(item&&item.result)==='Pass'?' selected':''}>Pass</option>
               <option${(item&&item.result)==='Fail'?' selected':''}>Fail</option>
               <option${(item&&item.result)==='Repaired'?' selected':''}>Repaired</option>
@@ -2034,13 +2034,13 @@ function renderWizS4b(p){
             <div style="font-size:.7rem;font-weight:700;color:#555;margin-bottom:.2rem;text-transform:uppercase;letter-spacing:.3px">Set-Point Temp (°C)</div>
             <input type="number" placeholder="e.g. 65" step="0.1" value="${item&&item.tempSet!=null?item.tempSet:''}"
               style="width:100%;box-sizing:border-box;padding:.32rem .5rem;border:1px solid var(--bd);border-radius:5px;font:inherit;font-size:.83rem;outline:none"
-              oninput="const idx=wizData.wwsItems.findIndex(w=>w.assetId==='${a.id}');if(idx>=0)wizData.wwsItems[idx].tempSet=this.value">
+              oninput="const idx=wizData.wwsItems.findIndex(w=>w.assetId=='${a.id}');if(idx>=0)wizData.wwsItems[idx].tempSet=this.value">
           </div>
           <div>
             <div style="font-size:.7rem;font-weight:700;color:#555;margin-bottom:.2rem;text-transform:uppercase;letter-spacing:.3px">Return Temp (°C)</div>
             <input type="number" placeholder="e.g. 60" step="0.1" value="${item&&item.tempRet!=null?item.tempRet:''}"
               style="width:100%;box-sizing:border-box;padding:.32rem .5rem;border:1px solid var(--bd);border-radius:5px;font:inherit;font-size:.83rem;outline:none"
-              oninput="const idx=wizData.wwsItems.findIndex(w=>w.assetId==='${a.id}');if(idx>=0)wizData.wwsItems[idx].tempRet=this.value">
+              oninput="const idx=wizData.wwsItems.findIndex(w=>w.assetId=='${a.id}');if(idx>=0)wizData.wwsItems[idx].tempRet=this.value">
           </div>
         </div>`:''}
       </div>`;
@@ -2217,7 +2217,7 @@ function renderRegTMV(){
       </div>
       ${sel?`<div style="padding:.48rem .6rem" onclick="event.stopPropagation()">
         <select style="padding:.35rem .55rem;border:1.5px solid var(--bd);border-radius:6px;font:inherit;font-size:.81rem;outline:none"
-          onchange="const idx=wizData.tmvItems.findIndex(t=>t.assetId==='${a.id}');if(idx>=0)wizData.tmvItems[idx].result=this.value">
+          onchange="const idx=wizData.tmvItems.findIndex(t=>t.assetId=='${a.id}');if(idx>=0)wizData.tmvItems[idx].result=this.value">
           <option>Pass</option><option>Fail</option><option>Repaired</option>
         </select>
       </div>`:''}
@@ -2274,7 +2274,7 @@ function renderWizS4bPumps(p){
       </div>
       ${sel?`<div style="display:flex;align-items:center;padding:.4rem .6rem;gap:.4rem" onclick="event.stopPropagation()">
         <select style="padding:.35rem .55rem;border:1.5px solid var(--bd);border-radius:6px;font:inherit;font-size:.81rem;outline:none;font-weight:600;color:${rc(item?item.result:'Pass')}"
-          onchange="const idx=wizData.pumpItems.findIndex(pp=>pp.assetId==='${a.id}');if(idx>=0)wizData.pumpItems[idx].result=this.value;this.style.color=this.value==='Pass'?'var(--green)':this.value==='Fail'?'var(--red)':'var(--amber)'">
+          onchange="const idx=wizData.pumpItems.findIndex(pp=>pp.assetId=='${a.id}');if(idx>=0)wizData.pumpItems[idx].result=this.value;this.style.color=this.value==='Pass'?'var(--green)':this.value==='Fail'?'var(--red)':'var(--amber)'">
           <option${(item&&item.result)==='Pass'?' selected':''}>Pass</option>
           <option${(item&&item.result)==='Fail'?' selected':''}>Fail</option>
           <option${(item&&item.result)==='Repaired'?' selected':''}>Repaired</option>
