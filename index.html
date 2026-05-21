@@ -13,6 +13,9 @@
   <script>document.addEventListener("DOMContentLoaded",()=>{if(typeof APP_CONFIG!=="undefined"){document.title=APP_CONFIG.name+" — "+APP_CONFIG.tagline;document.querySelectorAll('.app-ver').forEach(el=>el.textContent='v'+(APP_CONFIG.version||''));}})</script>
 <!-- html2pdf CDN (optional — PDF download; falls back to print dialog if offline) -->
 <script defer src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<!-- Leaflet (optional — map view only; app works fully without it) -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <!-- Firebase loaded via dynamic ES module import inside initFirebase() —  no script tags needed -->
 <style>
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300..700;1,9..40,300..700&display=swap');
@@ -62,6 +65,9 @@ html,body{height:100%;font-family:var(--font);background:var(--sf2);color:var(--
 /* ── LAYOUT ── */
 #app{padding-top:var(--nav);min-height:100%}
 .page{display:none;padding:1.25rem;max-width:1400px;margin:0 auto}
+#pg-map.on{display:flex;flex-direction:column;padding:0;max-width:100%;height:calc(100vh - var(--nav))}
+#map-container{flex:1;min-height:0}
+#map-picker-container{width:100%;height:340px}
 .page.on{display:block}
 
 /* ── TOOLBAR ── */
@@ -235,6 +241,7 @@ select.ctrl{padding:.42rem .65rem;border:1.5px solid var(--bd);border-radius:8px
     <button class="ntab" onclick="goPage('upcoming')">Upcoming</button>
     <button class="ntab" onclick="goPage('clients')">Clients</button>
     <button class="ntab" onclick="goPage('reports')">Reports</button>
+    <button class="ntab" onclick="goPage('map')">Map</button>
     <button class="ntab" onclick="goPage('settings')">Settings</button>
   </div>
   <div class="nr">
@@ -494,7 +501,33 @@ select.ctrl{padding:.42rem .65rem;border:1.5px solid var(--bd);border-radius:8px
   </div>
 </div>
 
+<!-- MAP PAGE -->
+<div id="pg-map" class="page">
+  <div style="padding:.55rem 1rem;display:flex;align-items:center;gap:.5rem;background:#fff;border-bottom:1px solid var(--bd);flex-wrap:wrap;flex-shrink:0">
+    <span id="map-count" style="font-size:.82rem;color:var(--tx3);flex:1">Loading…</span>
+    <button class="btn bg2 btn-sm" onclick="nearMe()">📍 Near Me</button>
+    <button class="btn bg2 btn-sm" onclick="renderMapMarkers()">↺ Refresh</button>
+  </div>
+  <div id="map-container"></div>
+</div>
+
 </div><!-- /app -->
+
+<!-- MAP PICKER MODAL -->
+<div class="mbg" id="m-map-picker">
+  <div class="modal" style="max-width:560px">
+    <div class="mh"></div>
+    <div class="mhdr"><h2>Pick Location</h2><button class="btn bg2 btn-sm" onclick="closeMapPicker()">✕</button></div>
+    <div class="mbody" style="padding:.75rem">
+      <p style="font-size:.8rem;color:var(--tx3);margin-bottom:.6rem">Tap the map to drop a pin. Drag the pin to adjust.</p>
+      <div id="map-picker-container"></div>
+    </div>
+    <div class="mfoot">
+      <button class="btn bg2" onclick="closeMapPicker()">Cancel</button>
+      <button class="btn bp2" id="map-picker-confirm">Confirm Location</button>
+    </div>
+  </div>
+</div>
 
 <!-- REPORT OVERLAY -->
 <div id="rpt-overlay">
@@ -541,6 +574,13 @@ select.ctrl{padding:.42rem .65rem;border:1.5px solid var(--bd);border-radius:8px
         <div class="fg"><label>Last Service Date</label><input type="date" id="a-svcdate"></div>
         <div class="fg"><label>Last Result</label><select id="a-result"><option value="">Not Yet Serviced</option><option>Pass</option><option>Fail</option><option>Repaired</option><option>Pending</option><option>Decommissioned</option></select></div>
         <div class="fg full"><label>Notes</label><textarea id="a-notes" placeholder="Service notes, observations…"></textarea></div>
+        <div class="fg full">
+          <label style="display:flex;align-items:center;justify-content:space-between">GPS Location <button type="button" class="btn bg2 btn-sm" onclick="openMapPicker()" style="font-size:.72rem">📍 Pick on map</button></label>
+          <div style="display:flex;gap:.4rem">
+            <input type="number" id="a-lat" placeholder="Latitude e.g. -34.4278" step="any" style="flex:1">
+            <input type="number" id="a-lng" placeholder="Longitude e.g. 150.8931" step="any" style="flex:1">
+          </div>
+        </div>
       </div>
     </div>
     <div class="mfoot">
@@ -782,6 +822,7 @@ let ePage='assets',typeF='',statusF='';
 let eAId=null,eCId=null,eCxId=null,eUId=null,eTId=null;
 let confCB=null,rptData=null,_addingTMVFromWiz=false;
 let _syncTimeout=null,_lastSyncTs=0,_unsubscribe=null;
+let _leafletMap=null,_mapMarkers=[],_mapPickerMap=null,_mapPickerMarker=null;
 
 function initData(){
   users     = L('aq_users',    null)||cp(DUSERS);
@@ -981,7 +1022,7 @@ function doLogout(){
 // ═══════════════════════════════════════════
 //  NAVIGATION
 // ═══════════════════════════════════════════
-const PAGES=['assets','upcoming','clients','reports','settings'];
+const PAGES=['assets','upcoming','clients','reports','map','settings'];
 function goPage(name){
   ePage=name;
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));
@@ -991,6 +1032,7 @@ function goPage(name){
   if(name==='upcoming') renderUpcoming();
   if(name==='clients')  renderClients();
   if(name==='reports')  renderReports();
+  if(name==='map')      renderMap();
   if(name==='settings') renderSettings();
 }
 
@@ -1288,7 +1330,7 @@ function openAddAsset(){
   eAId=null;
   $('m-asset-title').textContent='Add Asset';
   $('a-id').value='';
-  ['a-ref','a-section','a-loc','a-make','a-model','a-serial','a-cap','a-notes'].forEach(i=>$(i).value='');
+  ['a-ref','a-section','a-loc','a-make','a-model','a-serial','a-cap','a-notes','a-lat','a-lng'].forEach(i=>$(i).value='');
   $('a-svcdate').value='';$('a-result').value='';$('a-intv').value='annual';
   $('a-month').value=MONTHS[new Date().getMonth()];
   $('a-del').style.display='none';
@@ -1307,6 +1349,7 @@ function openEditAsset(id){
   $('a-notes').value=a.notes||'';$('a-svcdate').value=a.svcDate||'';
   $('a-result').value=a.result||'';$('a-intv').value=a.intv||'annual';
   $('a-month').value=a.month||'January';
+  $('a-lat').value=a.lat||'';$('a-lng').value=a.lng||'';
   $('a-del').style.display='';
   fillTypeDrop(a.type);
   fillClientDropModal('a-client',a.clientId);
@@ -1331,7 +1374,10 @@ function saveAsset(){
     month:$('a-month').value,intv:$('a-intv').value,
     svcDate:$('a-svcdate').value||null,result:$('a-result').value,
     notes:$('a-notes').value.trim(),
+    lat:parseFloat($('a-lat').value)||null,
+    lng:parseFloat($('a-lng').value)||null,
   };
+  if(!a.lat||!a.lng){delete a.lat;delete a.lng;}
   if(eAId){const i=assets.findIndex(x=>x.id===eAId);a.log=assets[i].log||[];assets[i]=a;}
   else{a.log=[];assets.push(a);}
   saveAll();
@@ -3519,6 +3565,111 @@ function rptTab(n){
   document.querySelectorAll('#pg-reports .tabpanel').forEach(p=>p.classList.remove('on'));
   $('rpt-'+n).classList.add('on');
 }
+
+// CT:SECTION:MAP — asset map view (Leaflet.js)
+// ═══════════════════════════════════════════
+//  MAP
+// ═══════════════════════════════════════════
+
+const PIN_COLOURS={ov:'#c62828',du:'#e65100',up:'#1565c0',co:'#2e7d32',fa:'#c62828',pe:'#8a9bb0',dc:'#95a5a6'};
+
+function _pinIcon(colour){
+  return L.divIcon({
+    className:'',
+    html:`<svg width="24" height="30" viewBox="0 0 24 30">
+      <circle cx="12" cy="12" r="10" fill="${colour}" stroke="white" stroke-width="2"/>
+      <line x1="12" y1="22" x2="12" y2="30" stroke="${colour}" stroke-width="2"/>
+    </svg>`,
+    iconSize:[24,30],iconAnchor:[12,30],popupAnchor:[0,-30]
+  });
+}
+
+function renderMap(){
+  if(typeof L==='undefined'){
+    $('map-count').textContent='Map unavailable — no internet connection';return;
+  }
+  if(!_leafletMap){
+    _leafletMap=L.map('map-container').setView([-33.86,151.20],10);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+      attribution:'© OpenStreetMap contributors',maxZoom:19
+    }).addTo(_leafletMap);
+  }
+  // Leaflet needs the container to be visible before rendering tiles
+  setTimeout(()=>{_leafletMap.invalidateSize();renderMapMarkers();},50);
+}
+
+function renderMapMarkers(){
+  if(!_leafletMap) return;
+  _mapMarkers.forEach(m=>_leafletMap.removeLayer(m));
+  _mapMarkers=[];
+  const visible=assets.filter(a=>a.lat&&a.lng);
+  $('map-count').textContent=visible.length+' asset'+(visible.length!==1?'s':'')+' with GPS location';
+  visible.forEach(a=>{
+    const st=getStatus(a);
+    const colour=PIN_COLOURS[st]||'#8a9bb0';
+    const cx=complexes.find(x=>x.id===a.cxId);
+    const marker=L.marker([a.lat,a.lng],{icon:_pinIcon(colour)});
+    marker.bindPopup(
+      `<strong>${a.ref}</strong> — ${a.type||''}<br>`+
+      `${a.loc||''}<br>`+
+      (cx?`<em>${cx.name}</em><br>`:'')+
+      `Status: <strong>${STLBL[st]||st}</strong>`
+    );
+    marker.on('click',()=>openEditAsset(a.id));
+    marker.addTo(_leafletMap);
+    _mapMarkers.push(marker);
+  });
+  if(_mapMarkers.length){
+    const grp=L.featureGroup(_mapMarkers);
+    _leafletMap.fitBounds(grp.getBounds().pad(0.12));
+  }
+}
+
+function nearMe(){
+  if(!navigator.geolocation){toast('Geolocation not supported by this browser',true);return;}
+  navigator.geolocation.getCurrentPosition(pos=>{
+    if(!_leafletMap) return;
+    const{latitude:lat,longitude:lng}=pos.coords;
+    L.marker([lat,lng],{icon:_pinIcon('#7b1fa2')})
+      .bindPopup('<strong>You are here</strong>')
+      .addTo(_leafletMap);
+    _leafletMap.setView([lat,lng],13);
+    toast('Showing your location');
+  },()=>toast('Could not get your location',true));
+}
+
+// Map picker — used in the asset edit modal
+function openMapPicker(){
+  const lat=parseFloat($('a-lat').value)||null;
+  const lng=parseFloat($('a-lng').value)||null;
+  $('m-map-picker').classList.add('on');
+  const centre=[lat||-33.86,lng||151.20];
+  if(!_mapPickerMap){
+    _mapPickerMap=L.map('map-picker-container').setView(centre,lat?15:10);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(_mapPickerMap);
+    _mapPickerMap.on('click',e=>{
+      const{lat:y,lng:x}=e.latlng;
+      if(_mapPickerMarker) _mapPickerMarker.setLatLng([y,x]);
+      else _mapPickerMarker=L.marker([y,x],{draggable:true}).addTo(_mapPickerMap);
+    });
+  }
+  if(lat&&lng){
+    if(_mapPickerMarker) _mapPickerMarker.setLatLng([lat,lng]);
+    else _mapPickerMarker=L.marker([lat,lng],{draggable:true}).addTo(_mapPickerMap);
+    _mapPickerMap.setView([lat,lng],16);
+  }
+  setTimeout(()=>_mapPickerMap.invalidateSize(),50);
+  $('map-picker-confirm').onclick=()=>{
+    if(_mapPickerMarker){
+      const{lat:y,lng:x}=_mapPickerMarker.getLatLng();
+      $('a-lat').value=y.toFixed(6);
+      $('a-lng').value=x.toFixed(6);
+    }
+    closeMapPicker();
+  };
+}
+
+function closeMapPicker(){$('m-map-picker').classList.remove('on');}
 
 // CT:SECTION:SETTINGS — settings page
 // ═══════════════════════════════════════════
