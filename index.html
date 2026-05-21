@@ -1688,6 +1688,9 @@ function setWizSvcType(t){wizData.serviceType=t;wizData.wwsItems=[];wizData.tmvI
 
 function renderReports(){
   wizCur=0;
+  // Always start with empty item selections so previous report doesn't bleed through
+  wizData.wwsItems=[];wizData.tmvItems=[];wizData.pumpItems=[];
+  wizData.selectedAssetIds=null;wizData.jobNumber='';wizData.extraNotes='';
   // Set defaults
   const tod=new Date();
   if(!wizData.from)wizData.from=tod.toISOString().split('T')[0];
@@ -2761,7 +2764,9 @@ function openReportWizardFor(id){
   wizData.singleDay = true;
   wizData.jobNumber = '';
   wizData.extraNotes= '';
+  wizData.wwsItems  = [];
   wizData.tmvItems  = [];
+  wizData.pumpItems = [];
   wizData.selectedAssetIds = [a.id]; // pre-select this asset
   wizData.techId    = CU?CU.id:'';
 
