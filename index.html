@@ -246,7 +246,6 @@ select.ctrl{padding:.42rem .65rem;border:1.5px solid var(--bd);border-radius:8px
     <button class="ntab" onclick="goPage('upcoming')">Upcoming</button>
     <button class="ntab" onclick="goPage('clients')">Clients</button>
     <button class="ntab" onclick="goPage('reports')">Reports</button>
-    <button class="ntab" onclick="goPage('map')">Map</button>
     <button class="ntab" onclick="goPage('settings')">Settings</button>
   </div>
   <div class="nr">
@@ -1028,7 +1027,7 @@ function doLogout(){
 // ═══════════════════════════════════════════
 //  NAVIGATION
 // ═══════════════════════════════════════════
-const PAGES=['assets','upcoming','clients','reports','map','settings'];
+const PAGES=['assets','upcoming','clients','reports','settings'];
 function goPage(name){
   ePage=name;
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));
@@ -1038,7 +1037,6 @@ function goPage(name){
   if(name==='upcoming') renderUpcoming();
   if(name==='clients')  renderClients();
   if(name==='reports')  renderReports();
-  if(name==='map')      renderMap();
   if(name==='settings') renderSettings();
 }
 
