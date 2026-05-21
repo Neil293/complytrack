@@ -3212,59 +3212,90 @@ function buildStandardRpt(d){
     </table>
   </div>
 
-  <!-- ASSETS SERVICED — merge rAssets + tmvItems + wwsItems from Systems step -->
+  <!-- ASSETS SERVICED — pump reports use simplified table with result from pumpItems -->
   ${(()=>{
-    // Build unified asset rows from all sources
+    const isPump=d.serviceType==='pump';
+    const th=s=>`<th style="padding:.45rem .6rem;border:1px solid #dde3ec;font-size:.72rem;font-weight:700;text-align:left;color:#555;text-transform:uppercase;letter-spacing:.3px">${s}</th>`;
+    const td=s=>`<td style="padding:.45rem .6rem;border:1px solid #dde3ec;font-size:.83rem">${s}</td>`;
+    const tdMono=s=>`<td style="padding:.45rem .6rem;border:1px solid #dde3ec;font-size:.83rem;font-family:monospace;font-weight:600">${s}</td>`;
+
+    if(isPump){
+      // Pump report: Ref, Type, Location, Pass/Fail — result from pumpItems
+      const rows=[];
+      d.rAssets.forEach(a=>{
+        const pi=(d.pumpItems||[]).find(p=>String(p.assetId)===String(a.id));
+        const res=pi?pi.result:'—';
+        const resCol=res==='Pass'?'#2e7d32':res==='Fail'?'#c62828':'#e65100';
+        rows.push(`<tr>
+          ${tdMono(a.ref)}
+          ${td(tIcon(a.type)+' '+a.type)}
+          ${td(a.loc||'—')}
+          <td style="padding:.45rem .6rem;border:1px solid #dde3ec;font-size:.83rem;font-weight:700;color:${resCol}">${res}</td>
+        </tr>`);
+      });
+      // Also include manually-added pump items (no assetId)
+      (d.pumpItems||[]).filter(p=>!p.assetId).forEach(p=>{
+        const res=p.result||'—';
+        const resCol=res==='Pass'?'#2e7d32':res==='Fail'?'#c62828':'#e65100';
+        rows.push(`<tr>
+          ${tdMono(p.ref||'—')}
+          ${td(tIcon(p.type||'Sewer Pump')+' '+(p.type||'Pump'))}
+          ${td('—')}
+          <td style="padding:.45rem .6rem;border:1px solid #dde3ec;font-size:.83rem;font-weight:700;color:${resCol}">${res}</td>
+        </tr>`);
+      });
+      if(!rows.length) return '';
+      return `<div style="margin-bottom:1.5rem">
+        ${secHdr('🔧','Assets Serviced')}
+        <table style="width:100%;border-collapse:collapse">
+          <thead><tr style="background:#f0f4fa">
+            ${th('Ref / ID')}${th('Type')}${th('Location')}${th('Result')}
+          </tr></thead>
+          <tbody>${rows.join('')}</tbody>
+        </table>
+      </div>`;
+    }
+
+    // Non-pump: full table with Make/Model, Serial, Notes
     const seen=new Set();
     const rows=[];
-    // From rAssets (standard filter)
     d.rAssets.forEach(a=>{
       if(seen.has(String(a.id))) return; seen.add(String(a.id));
       const lr=d.recs.filter(r=>String(r.asset.id)===String(a.id)).pop();
       rows.push(`<tr>
-        <td style="padding:.45rem .6rem;border:1px solid #dde3ec;font-size:.83rem;font-family:monospace;font-weight:600">${a.ref}</td>
-        <td style="padding:.45rem .6rem;border:1px solid #dde3ec;font-size:.83rem">${tIcon(a.type)} ${a.type}</td>
-        <td style="padding:.45rem .6rem;border:1px solid #dde3ec;font-size:.83rem">${a.loc||'—'}</td>
-        <td style="padding:.45rem .6rem;border:1px solid #dde3ec;font-size:.83rem">${[a.make,a.model].filter(Boolean).join(' ')||'—'}</td>
+        ${tdMono(a.ref)}
+        ${td(tIcon(a.type)+' '+a.type)}
+        ${td(a.loc||'—')}
+        ${td([a.make,a.model].filter(Boolean).join(' ')||'—')}
         <td style="padding:.45rem .6rem;border:1px solid #dde3ec;font-size:.8rem;font-family:monospace">${a.serial||'—'}</td>
-        <td style="padding:.45rem .6rem;border:1px solid #dde3ec;font-size:.83rem">${lr?rc(lr.log.result):'—'}</td>
+        ${td(lr?rc(lr.log.result):'—')}
         <td style="padding:.45rem .6rem;border:1px solid #dde3ec;font-size:.8rem;color:#555">${lr&&lr.log.notes?lr.log.notes:'—'}</td>
       </tr>`);
     });
-    // From tmvItems (Systems step)
     (d.tmvItems||[]).forEach(t=>{
       const ra=t.assetId?assets.find(x=>String(x.id)===String(t.assetId)):null;
       const key=ra?String(ra.id):('tmv_'+t.ref);
       if(seen.has(key)) return; seen.add(key);
-      const ref=ra?ra.ref:(t.ref||'—');
-      const loc=ra?ra.loc:(t.loc||'—');
-      const model=ra?[ra.make,ra.model].filter(Boolean).join(' '):(t.model||'—');
-      const serial=ra?ra.serial:'—';
       rows.push(`<tr>
-        <td style="padding:.45rem .6rem;border:1px solid #dde3ec;font-size:.83rem;font-family:monospace;font-weight:600">${ref}</td>
-        <td style="padding:.45rem .6rem;border:1px solid #dde3ec;font-size:.83rem">🚿 TMV</td>
-        <td style="padding:.45rem .6rem;border:1px solid #dde3ec;font-size:.83rem">${loc}</td>
-        <td style="padding:.45rem .6rem;border:1px solid #dde3ec;font-size:.83rem">${model}</td>
-        <td style="padding:.45rem .6rem;border:1px solid #dde3ec;font-size:.8rem;font-family:monospace">${serial}</td>
+        ${tdMono(ra?ra.ref:(t.ref||'—'))}
+        ${td('🚿 TMV')}
+        ${td(ra?ra.loc:(t.loc||'—'))}
+        ${td(ra?[ra.make,ra.model].filter(Boolean).join(' '):(t.model||'—'))}
+        <td style="padding:.45rem .6rem;border:1px solid #dde3ec;font-size:.8rem;font-family:monospace">${ra?ra.serial:'—'}</td>
         <td style="padding:.45rem .6rem;border:1px solid #dde3ec;font-size:.83rem;font-weight:700;color:${t.result==='Pass'?'#2e7d32':t.result==='Fail'?'#c62828':'#e65100'}">${t.result||'—'}</td>
         <td style="padding:.45rem .6rem;border:1px solid #dde3ec;font-size:.8rem;color:#555">—</td>
       </tr>`);
     });
-    // From wwsItems (Systems step)
     (d.wwsItems||[]).forEach(w=>{
       const ra=w.assetId?assets.find(x=>String(x.id)===String(w.assetId)):null;
       const key=ra?String(ra.id):('wws_'+w.ref);
       if(seen.has(key)) return; seen.add(key);
-      const ref=ra?ra.ref:(w.ref||'—');
-      const loc=ra?ra.loc:(w.loc||'—');
-      const model=ra?[ra.make,ra.model].filter(Boolean).join(' '):(w.model||'—');
-      const serial=ra?ra.serial:'—';
       rows.push(`<tr>
-        <td style="padding:.45rem .6rem;border:1px solid #dde3ec;font-size:.83rem;font-family:monospace;font-weight:600">${ref}</td>
-        <td style="padding:.45rem .6rem;border:1px solid #dde3ec;font-size:.83rem">🌡 Warm Water</td>
-        <td style="padding:.45rem .6rem;border:1px solid #dde3ec;font-size:.83rem">${loc}</td>
-        <td style="padding:.45rem .6rem;border:1px solid #dde3ec;font-size:.83rem">${model}</td>
-        <td style="padding:.45rem .6rem;border:1px solid #dde3ec;font-size:.8rem;font-family:monospace">${serial}</td>
+        ${tdMono(ra?ra.ref:(w.ref||'—'))}
+        ${td('🌡 Warm Water')}
+        ${td(ra?ra.loc:(w.loc||'—'))}
+        ${td(ra?[ra.make,ra.model].filter(Boolean).join(' '):(w.model||'—'))}
+        <td style="padding:.45rem .6rem;border:1px solid #dde3ec;font-size:.8rem;font-family:monospace">${ra?ra.serial:'—'}</td>
         <td style="padding:.45rem .6rem;border:1px solid #dde3ec;font-size:.83rem;font-weight:700;color:${w.result==='Pass'?'#2e7d32':w.result==='Fail'?'#c62828':'#e65100'}">${w.result||'—'}</td>
         <td style="padding:.45rem .6rem;border:1px solid #dde3ec;font-size:.8rem;color:#555">—</td>
       </tr>`);
@@ -3274,13 +3305,7 @@ function buildStandardRpt(d){
       ${secHdr('🔧','Assets Serviced')}
       <table style="width:100%;border-collapse:collapse">
         <thead><tr style="background:#f0f4fa">
-          <th style="padding:.45rem .6rem;border:1px solid #dde3ec;font-size:.72rem;font-weight:700;text-align:left;color:#555;text-transform:uppercase;letter-spacing:.3px">Ref / ID</th>
-          <th style="padding:.45rem .6rem;border:1px solid #dde3ec;font-size:.72rem;font-weight:700;text-align:left;color:#555;text-transform:uppercase;letter-spacing:.3px">Type</th>
-          <th style="padding:.45rem .6rem;border:1px solid #dde3ec;font-size:.72rem;font-weight:700;text-align:left;color:#555;text-transform:uppercase;letter-spacing:.3px">Location</th>
-          <th style="padding:.45rem .6rem;border:1px solid #dde3ec;font-size:.72rem;font-weight:700;text-align:left;color:#555;text-transform:uppercase;letter-spacing:.3px">Make / Model</th>
-          <th style="padding:.45rem .6rem;border:1px solid #dde3ec;font-size:.72rem;font-weight:700;text-align:left;color:#555;text-transform:uppercase;letter-spacing:.3px">Serial</th>
-          <th style="padding:.45rem .6rem;border:1px solid #dde3ec;font-size:.72rem;font-weight:700;text-align:left;color:#555;text-transform:uppercase;letter-spacing:.3px">Result</th>
-          <th style="padding:.45rem .6rem;border:1px solid #dde3ec;font-size:.72rem;font-weight:700;text-align:left;color:#555;text-transform:uppercase;letter-spacing:.3px">Notes</th>
+          ${th('Ref / ID')}${th('Type')}${th('Location')}${th('Make / Model')}${th('Serial')}${th('Result')}${th('Notes')}
         </tr></thead>
         <tbody>${rows.join('')}</tbody>
       </table>
