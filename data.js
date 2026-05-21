@@ -54,6 +54,17 @@ const APP_CONFIG = {
   defaultAdmin:    { username: 'admin',  password: 'admin' },
   defaultTech:     { username: 'tech1',  password: 'tech1' },
 };
+
+// ─── FIREBASE CONFIG ──────────────────────────────────────────────────────────
+// Pre-fills the Cloud Sync setup form. User still needs to enter email + password.
+const DFIREBASE_CFG = {
+  apiKey:            "AIzaSyCeQ2jjSHSaiskMTX86QVr2aG3UC2_QMKY",
+  authDomain:        "complytrack-6ac7e.firebaseapp.com",
+  projectId:         "complytrack-6ac7e",
+  storageBucket:     "complytrack-6ac7e.firebasestorage.app",
+  messagingSenderId: "464278358151",
+  appId:             "1:464278358151:web:6a7619a2c4f5f0ed2cd022"
+};
 // ─────────────────────────────────────────────────────────────────────────────
 
 const MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
