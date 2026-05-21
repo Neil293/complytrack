@@ -155,7 +155,12 @@ select.ctrl{padding:.42rem .65rem;border:1.5px solid var(--bd);border-radius:8px
 /* ── SECTION HEADERS ── */
 .moh{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--tx3);padding:.38rem 0;border-bottom:1px solid var(--bd);margin:1rem 0 .48rem}
 .moh:first-child{margin-top:0}
-.cxh{font-size:.79rem;font-weight:700;color:var(--navy);padding:.28rem 0 .28rem .45rem;border-left:3px solid var(--blue);margin:.6rem 0 .38rem}
+.cxh{font-size:.79rem;font-weight:700;color:var(--navy);padding:.28rem .45rem .28rem .45rem;border-left:3px solid var(--blue);margin:.6rem 0 0;cursor:pointer;display:flex;align-items:center;gap:.35rem;user-select:none;border-radius:0 4px 4px 0}
+.cxh:hover{background:var(--sf3)}
+.cx-chevron{margin-left:auto;color:var(--tx3);font-size:.8rem;transition:transform .15s;flex-shrink:0}
+.cx-group.open>.cxh .cx-chevron{transform:rotate(180deg)}
+.cx-assets{display:none;margin-bottom:.3rem}
+.cx-group.open>.cx-assets{display:block}
 
 /* ── TAB BAR ── */
 .tabbar{display:flex;border-bottom:2px solid var(--bd);margin-bottom:1.1rem;overflow-x:auto;gap:0}
@@ -823,6 +828,7 @@ let eAId=null,eCId=null,eCxId=null,eUId=null,eTId=null;
 let confCB=null,rptData=null,_addingTMVFromWiz=false;
 let _syncTimeout=null,_lastSyncTs=0,_unsubscribe=null;
 let _leafletMap=null,_mapMarkers=[],_mapPickerMap=null,_mapPickerMarker=null;
+let openGroups=new Set();
 
 function initData(){
   users     = L('aq_users',    null)||cp(DUSERS);
@@ -1132,11 +1138,27 @@ function renderAssets(){
   const el=$('asset-list');
   if(!list.length){el.innerHTML='<div class="empty"><p>No assets found</p></div>';return;}
 
+  // Auto-expand all groups when a filter is active so results are visible
+  const filtered=!!(typeF||statusF||q);
+
   // Sort groups by complex name
   const sortedKeys=Object.keys(grps).sort((a,b)=>cxName(a).localeCompare(cxName(b)));
-  el.innerHTML=sortedKeys.map(cxid=>`
-    <div class="cxh">${cxName(cxid)} <span style="font-weight:400;color:var(--tx3);font-size:.71rem">(${grps[cxid].length})</span></div>
-    ${grps[cxid].map(a=>assetCard(a)).join('')}`).join('');
+  el.innerHTML=sortedKeys.map(cxid=>{
+    const isOpen=filtered||openGroups.has(cxid);
+    return `<div class="cx-group${isOpen?' open':''}" id="cxg-${cxid}">
+      <div class="cxh" onclick="toggleCxGroup('${cxid}')">
+        ${cxName(cxid)} <span style="font-weight:400;color:var(--tx3);font-size:.71rem">(${grps[cxid].length})</span>
+        <span class="cx-chevron">▾</span>
+      </div>
+      <div class="cx-assets">${grps[cxid].map(a=>assetCard(a)).join('')}</div>
+    </div>`;
+  }).join('');
+}
+
+function toggleCxGroup(cxid){
+  const el=$('cxg-'+cxid);if(!el)return;
+  el.classList.toggle('open');
+  openGroups[el.classList.contains('open')?'add':'delete'](cxid);
 }
 
 function assetCard(a){
