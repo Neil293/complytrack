@@ -31,7 +31,7 @@ Live deployment: https://neil293.github.io/complytrack/
 
 1. On `DOMContentLoaded`, `initData()` checks localStorage. If empty, it seeds from the `D*` constants in `data.js`.
 2. All runtime state lives in global variables: `CU` (current user), `assets`, `users`, `clients`, `complexes`, `types`, `settings`.
-3. Any mutation calls `saveAll()` to persist the entire state to localStorage and schedule a cloud sync (if Firebase is configured).
+3. Any mutation calls `saveAll()` to persist the entire state to localStorage and schedule a debounced cloud sync via `syncToFirebase()` (if Firebase is configured).
 4. UI re-renders by calling a `render*()` function (e.g. `renderAssets()`, `renderClients()`).
 
 **Code sections** are marked with `CT:SECTION` comments in `index.html`:
@@ -40,7 +40,7 @@ Live deployment: https://neil293.github.io/complytrack/
 |---|---|---|
 | `STORAGE` | ~749 | `ls()`, `L()`, `S()` — localStorage helpers; `$()` — getElementById shorthand |
 | `STATE` | ~759 | Global variable declarations |
-| `FIREBASE` | ~803 | Cloud sync — `initFirebase()`, `pullFromCloud()`, `pushToCloud()`, `scheduleFsSync()` |
+| `FIREBASE` | ~803 | Cloud sync — `initFirebase()`, `syncToFirebase()`, `syncNow()`, `startFirebaseListener()` |
 | `BOOT` | ~960 | `initData()`, `saveAll()`, `hardReset()`, `loginUser()` |
 | `ASSET_CRUD` | ~1106 | `saveAsset()`, `deleteAsset()`, `saveSvc()`, `renderAssets()`, `assetCard()` |
 | `COMPLEX_CRUD` | ~1408 | `saveComplex()`, `deleteComplex()`, import parsing |
@@ -94,22 +94,30 @@ Each item in `wwsItems` / `tmvItems` / `pumpItems` has: `{assetId?, ref, model, 
 
 ## Firebase Cloud Sync
 
-Firebase is **optional** — the app works fully offline without it. The SDK is loaded from CDN; if it fails (no internet), Firebase is silently skipped.
+Firebase is **optional** — the app works fully offline without it. The SDK is loaded via dynamic ES module import; if it fails (no internet), Firebase is silently skipped.
 
-**Global vars:** `fsDb`, `fsAuth`, `fsSyncTimer` (all `null` until configured)
+**Global vars:** `_syncTimeout`, `_lastSyncTs`, `_unsubscribe` — all managed inside the FIREBASE section.
 
-**Config storage:** `settings.fsCfg` — contains the Firebase web app config fields plus `email` and `pass` (password is stripped before any Firestore write).
+**Config storage:** `settings.fsCfg` — contains the Firebase web app config fields (baked in from `DSETTINGS.fsCfg` in `data.js`). No email/password — Firebase Auth is not used.
 
-**Sync strategy (minimises free-tier usage):**
-- `initFirebase()` — called in `loginUser()`; signs in with email/password, then calls `pullFromCloud()` once
-- `pullFromCloud(uid)` — one Firestore read; if cloud `at` timestamp is newer than `settings.fsSyncAt`, prompts user to load from cloud
-- `pushToCloud(uid)` — writes the full state as one Firestore document (`complytrack/{uid}`)
-- `scheduleFsSync()` — called by `saveAll()`; debounces 30 s, then calls `pushToCloud()`. No real-time listener.
-- Typical session cost: **1 read + 3–5 writes** — well within the Spark free tier (50K reads / 20K writes per day)
+**Sync strategy:**
+- `initFirebase()` — called in `loginUser()`; dynamically imports the Firebase ES module SDK, initialises Firestore, then calls `startFirebaseListener()`
+- `startFirebaseListener()` — attaches an `onSnapshot` real-time listener to `ct_sync/main`; on first snapshot if doc doesn't exist, calls `syncToFirebase()` to push local data; incoming remote writes are applied to global vars + localStorage, then the current page is re-rendered via `goPage(ePage)`
+- `syncToFirebase()` — called by `saveAll()`; 5 s debounced write to `ct_sync/main`
+- `syncNow()` — immediate (non-debounced) write; called by the Sync Now button in Settings
+- `_lastSyncTs` — set to `Date.now()` before each write so the listener can distinguish this session's own writes from remote changes and skip re-applying them
+- Listener and pending timeout are cleaned up on logout (`doLogout()`) and disconnect (`disconnectCloud()`)
 
-**Settings UI:** `renderFsSection()` injects the Cloud Sync card into `<div id="fs-sync-section">` in the Data tab. It renders a setup form (not yet configured) or a status panel with Sync Now / Disconnect (already configured). Called from `renderSettings()`.
+**Settings UI:** `renderFsSection()` injects the Cloud Sync card into `<div id="fs-sync-section">` in the Data tab. Shows status + Last synced + Sync Now / Disconnect when connected; Reconnect button when disconnected. Called from `renderSettings()`.
 
-**Firestore document path:** `complytrack/{firebaseAuthUid}` — one document per authenticated user, containing the full backup payload (`assets`, `users`, `clients`, `complexes`, `types`, `settings`, `at`).
+**Firestore document path:** `ct_sync/main` — single document for all app state (`assets`, `users`, `clients`, `complexes`, `types`, `settings`, `updatedAt`, `updatedBy`).
+
+**Firestore security rules required:**
+```
+match /ct_sync/main {
+  allow read, write: if true;
+}
+```
 
 ## Customisation via data.js
 

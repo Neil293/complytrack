@@ -96,18 +96,24 @@ All data is stored in **browser localStorage**. This means:
 
 ### Cloud Sync (optional)
 
-Connect a Firebase project to sync data automatically between devices:
+Sync data automatically between devices using Firestore. No account or login required — just create the Firestore database and set public rules.
 
-1. Create a **Firebase Auth** user in your Firebase Console (Authentication → Users → Add user)
-2. Go to **Settings → ⚙️ Data → ☁️ Cloud Sync**
-3. Paste your `firebaseConfig` JSON (from Firebase Console → Project Settings → Your apps → Web)
-4. Enter the Firebase Auth email and password → **Save & Connect**
+**Setup (one-time, in Firebase Console):**
 
-After connecting, the app syncs automatically 30 seconds after any change. On login, if cloud data is newer than local data, you will be prompted to load from cloud.
+1. Go to **Firestore Database → Create database** → choose a region → Production mode
+2. In the **Rules** tab, paste and publish:
+   ```
+   match /ct_sync/main {
+     allow read, write: if true;
+   }
+   ```
 
-- Firebase project: `complytrack-6ac7e` (australia-southeast1)
-- Firestore path: `complytrack/{uid}` — one document per user account
-- Free-tier read/write usage: ~1 read + 3–5 writes per session
+After setup, open the app — it connects automatically and shows **☁️ Connected** in Settings → ⚙️ Data → Cloud Sync.
+
+- Firebase project: `complytrack-6ac7e`
+- Firestore path: `ct_sync/main` — single document for all app state
+- Real-time sync via `onSnapshot` listener; writes debounced 5 s after any change
+- Free-tier usage: well within Spark limits (no reads charged for listeners after first load)
 
 ---
 
@@ -185,7 +191,7 @@ Access the app directly in your browser (no download required):
 
 - Pure HTML, CSS and JavaScript — no frameworks, no build step
 - Two files — `index.html` (app) + `data.js` (seed data)
-- Works fully offline — Firebase SDK loaded from CDN but not required
+- Works fully offline — Firebase SDK loaded via dynamic ES module import, silently skipped if unavailable
 - Mobile-friendly responsive design
 - Compatible with Chrome, Safari, Edge, Firefox
 

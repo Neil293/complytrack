@@ -47,7 +47,7 @@
 const APP_CONFIG = {
   name:        'ComplyTrack',
   tagline:     'Water System Compliance',
-  version:     '1.2.0',
+  version:     '1.3.0',
   repo:        'https://github.com/Neil293/complytrack',
   liveUrl:     'https://neil293.github.io/complytrack/',
   // Default login credentials (change after first deploy)
@@ -55,16 +55,6 @@ const APP_CONFIG = {
   defaultTech:     { username: 'tech1',  password: 'tech1' },
 };
 
-// ─── FIREBASE CONFIG ──────────────────────────────────────────────────────────
-// Pre-fills the Cloud Sync setup form. User still needs to enter email + password.
-const DFIREBASE_CFG = {
-  apiKey:            "AIzaSyCeQ2jjSHSaiskMTX86QVr2aG3UC2_QMKY",
-  authDomain:        "complytrack-6ac7e.firebaseapp.com",
-  projectId:         "complytrack-6ac7e",
-  storageBucket:     "complytrack-6ac7e.firebasestorage.app",
-  messagingSenderId: "464278358151",
-  appId:             "1:464278358151:web:6a7619a2c4f5f0ed2cd022"
-};
 // ─────────────────────────────────────────────────────────────────────────────
 
 const MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
