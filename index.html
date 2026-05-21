@@ -793,6 +793,10 @@ function initData(){
   assets    = L('aq_assets',   null)||cp(DASSETS);
   types     = L('aq_types',    null)||cp(DTYPES);
   settings  = L('aq_settings', null)||cp(DSETTINGS);
+  // Migrate Firebase config from DSETTINGS if not already set
+  if(DSETTINGS.fsCfg&&(!settings.fsCfg||!settings.fsCfg.apiKey)){
+    settings.fsCfg={...cp(DSETTINGS.fsCfg),...(settings.fsCfg||{})};
+  }
   // Merge any new default types that don't exist in saved types yet
   DTYPES.forEach(dt=>{
     if(!types.find(t=>t.id===dt.id||t.name===dt.name)){

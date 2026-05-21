@@ -263,6 +263,14 @@ const DUSERS=[
 ];
 
 const DSETTINGS={
+  fsCfg:{
+    apiKey:'AIzaSyCeQ2jjSHSaiskMTX86QVr2aG3UC2_QMKY',
+    authDomain:'complytrack-6ac7e.firebaseapp.com',
+    projectId:'complytrack-6ac7e',
+    storageBucket:'complytrack-6ac7e.firebasestorage.app',
+    messagingSenderId:'464278358151',
+    appId:'1:464278358151:web:6a7619a2c4f5f0ed2cd022'
+  },
   emailSubj:'Service Report — {{complex}} — {{month}} {{year}}',
   emailBody:'Dear {{client}},\n\nPlease find the service report for {{complex}} — {{month}} {{year}}.\n\nAddress: {{complex_addr}}\n\nSummary:\n• Assets: {{total_assets}}\n• Completed: {{completed}}\n• Overdue/Failed: {{overdue}}\n\n{{asset_list}}\n\nRegards,\n{{tech_name}}\n{{tech_company}}\n{{tech_phone}}',
   company:{
