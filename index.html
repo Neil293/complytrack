@@ -846,6 +846,10 @@ function initData(){
       types.push(cp(dt));
     }
   });
+  // Rename Raypack → Hot Water in types and assets
+  const raypack=types.find(t=>t.name==='Raypack');
+  if(raypack){raypack.name='Hot Water';raypack.capLbl='Capacity (L)';}
+  assets.forEach(a=>{if(a.type==='Raypack')a.type='Hot Water';});
   // Purge clients not in DCLIENTS (removes old demo data after seed change)
   const validClientIds=new Set(DCLIENTS.map(c=>c.id));
   clients=clients.filter(c=>validClientIds.has(c.id)||!DCLIENTS.length);
