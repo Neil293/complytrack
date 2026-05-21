@@ -1623,6 +1623,8 @@ const WIZ_STEPS=[
 // Wizard state
 let wizData={clientId:'',cxId:'',from:'',to:'',singleDay:true,serviceType:'standard',typeF:'',selectedAssetIds:null,techId:'',jobNumber:'',wwsItems:[],tmvItems:[],pumpItems:[],wwServiceInterval:'6month',extraNotes:''};
 
+function setWizSvcType(t){wizData.serviceType=t;wizData.wwsItems=[];wizData.tmvItems=[];wizData.pumpItems=[];rerenderS3();}
+
 function renderReports(){
   wizCur=0;
   // Set defaults
@@ -1755,7 +1757,7 @@ function renderWizS3(p){
     <div class="fg" style="margin-bottom:1.1rem">
       <label>Service Type *</label>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:.4rem;margin-top:.35rem">
-        <div onclick="wizData.serviceType='standard';rerenderS3()"
+        <div onclick="setWizSvcType('standard')"
           style="display:flex;align-items:center;gap:.6rem;padding:.65rem .85rem;border-radius:8px;border:2px solid ${wizData.serviceType==='standard'?'var(--blue)':'var(--bd)'};background:${wizData.serviceType==='standard'?'#f0f6ff':'#fff'};cursor:pointer;transition:all .15s">
           <span style="font-size:1.1rem">📋</span>
           <div style="flex:1">
@@ -1764,7 +1766,7 @@ function renderWizS3(p){
           </div>
           ${wizData.serviceType==='standard'?'<span style="color:var(--blue)">✓</span>':''}
         </div>
-        <div onclick="wizData.serviceType='legionella';rerenderS3()"
+        <div onclick="setWizSvcType('legionella')"
           style="display:flex;align-items:center;gap:.6rem;padding:.65rem .85rem;border-radius:8px;border:2px solid ${wizData.serviceType==='legionella'?'var(--blue)':'var(--bd)'};background:${wizData.serviceType==='legionella'?'#f0f6ff':'#fff'};cursor:pointer;transition:all .15s">
           <span style="font-size:1.1rem">🦠</span>
           <div style="flex:1">
@@ -1773,7 +1775,7 @@ function renderWizS3(p){
           </div>
           ${wizData.serviceType==='legionella'?'<span style="color:var(--blue)">✓</span>':''}
         </div>
-        <div onclick="wizData.serviceType='warmwater';rerenderS3()"
+        <div onclick="setWizSvcType('warmwater')"
           style="display:flex;align-items:center;gap:.6rem;padding:.65rem .85rem;border-radius:8px;border:2px solid ${wizData.serviceType==='warmwater'?'var(--blue)':'var(--bd)'};background:${wizData.serviceType==='warmwater'?'#f0f6ff':'#fff'};cursor:pointer;transition:all .15s">
           <span style="font-size:1.1rem">🌡</span>
           <div style="flex:1">
@@ -1782,7 +1784,7 @@ function renderWizS3(p){
           </div>
           ${wizData.serviceType==='warmwater'?'<span style="color:var(--blue)">✓</span>':''}
         </div>
-        <div onclick="wizData.serviceType='tmv';rerenderS3()"
+        <div onclick="setWizSvcType('tmv')"
           style="display:flex;align-items:center;gap:.6rem;padding:.65rem .85rem;border-radius:8px;border:2px solid ${wizData.serviceType==='tmv'?'var(--blue)':'var(--bd)'};background:${wizData.serviceType==='tmv'?'#f0f6ff':'#fff'};cursor:pointer;transition:all .15s">
           <span style="font-size:1.1rem">🚿</span>
           <div style="flex:1">
@@ -1791,7 +1793,7 @@ function renderWizS3(p){
           </div>
           ${wizData.serviceType==='tmv'?'<span style="color:var(--blue)">✓</span>':''}
         </div>
-        <div onclick="wizData.serviceType='pump';rerenderS3()"
+        <div onclick="setWizSvcType('pump')"
           style="display:flex;align-items:center;gap:.6rem;padding:.65rem .85rem;border-radius:8px;border:2px solid ${wizData.serviceType==='pump'?'var(--blue)':'var(--bd)'};background:${wizData.serviceType==='pump'?'#f0f6ff':'#fff'};cursor:pointer;transition:all .15s">
           <span style="font-size:1.1rem">🔧</span>
           <div style="flex:1">
@@ -1800,7 +1802,7 @@ function renderWizS3(p){
           </div>
           ${wizData.serviceType==='pump'?'<span style="color:var(--blue)">✓</span>':''}
         </div>
-        <div onclick="wizData.serviceType='reactive';rerenderS3()"
+        <div onclick="setWizSvcType('reactive')"
           style="display:flex;align-items:center;gap:.6rem;padding:.65rem .85rem;border-radius:8px;border:2px solid ${wizData.serviceType==='reactive'?'var(--blue)':'var(--bd)'};background:${wizData.serviceType==='reactive'?'#f0f6ff':'#fff'};cursor:pointer;transition:all .15s">
           <span style="font-size:1.1rem">⚡</span>
           <div style="flex:1">
@@ -1809,7 +1811,7 @@ function renderWizS3(p){
           </div>
           ${wizData.serviceType==='reactive'?'<span style="color:var(--blue)">✓</span>':''}
         </div>
-        <div onclick="wizData.serviceType='other';rerenderS3()"
+        <div onclick="setWizSvcType('other')"
           style="display:flex;align-items:center;gap:.6rem;padding:.65rem .85rem;border-radius:8px;border:2px solid ${wizData.serviceType==='other'?'var(--blue)':'var(--bd)'};background:${wizData.serviceType==='other'?'#f0f6ff':'#fff'};cursor:pointer;transition:all .15s">
           <span style="font-size:1.1rem">📄</span>
           <div style="flex:1">
@@ -3467,13 +3469,7 @@ Please find attached our ${svcLabel} for ${d.cx?d.cx.name:'your site'}${cxAddrSt
 ASSETS SERVICED
 ${al}
 
-Please do not hesitate to contact us if you have any questions regarding this report.
-
-Kind regards,
-${tech.name||''}
-${tech.company||settings.co||''}
-${tech.phone||tech.mobile||settings.ph||''}
-${tech.email||settings.em||''}`.trim();
+Please do not hesitate to contact us if you have any questions regarding this report.`.trim();
 
   $('e-to').value=cl.email||'';$('e-cc').value='';
   $('e-subj').value=tpl(settings.emailSubj||'{{service_type}} — {{complex}} — {{service_date}}');
