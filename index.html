@@ -13,10 +13,7 @@
   <script>document.addEventListener("DOMContentLoaded",()=>{if(typeof APP_CONFIG!=="undefined"){document.title=APP_CONFIG.name+" — "+APP_CONFIG.tagline;document.querySelectorAll('.app-ver').forEach(el=>el.textContent='v'+(APP_CONFIG.version||''));}})</script>
 <!-- html2pdf CDN (optional — PDF download; falls back to print dialog if offline) -->
 <script defer src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-<!-- Firebase CDN (optional — cloud sync only, app works fully offline without it) -->
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<!-- Firebase loaded via dynamic ES module import inside initFirebase() —  no script tags needed -->
 <style>
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300..700;1,9..40,300..700&display=swap');
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -784,7 +781,7 @@ let CU=null,assets,users,clients,complexes,types,settings;
 let ePage='assets',typeF='',statusF='';
 let eAId=null,eCId=null,eCxId=null,eUId=null,eTId=null;
 let confCB=null,rptData=null,_addingTMVFromWiz=false;
-let fsDb=null,fsAuth=null,fsSyncTimer=null;
+let _syncTimeout=null,_lastSyncTs=0,_unsubscribe=null;
 
 function initData(){
   users     = L('aq_users',    null)||cp(DUSERS);
@@ -815,7 +812,7 @@ function initData(){
 function saveAll(){
   S('aq_users',users);S('aq_clients',clients);S('aq_complexes',complexes);
   S('aq_assets',assets);S('aq_types',types);S('aq_settings',settings);
-  scheduleFsSync();
+  syncToFirebase();
 }
 function cp(x){return JSON.parse(JSON.stringify(x));}
 
@@ -824,74 +821,78 @@ function cp(x){return JSON.parse(JSON.stringify(x));}
 //  FIREBASE
 // ═══════════════════════════════════════════
 
-function initFirebase(){
+async function initFirebase(){
   const cfg=settings&&settings.fsCfg;
-  if(!cfg||!cfg.apiKey||typeof firebase==='undefined') return;
+  if(!cfg||!cfg.apiKey) return;
   try{
-    if(!firebase.apps.length) firebase.initializeApp(cfg);
-    fsDb=firebase.firestore();
-    fsAuth=firebase.auth();
-    fsAuth.onAuthStateChanged(u=>{
-      if(u) pullFromCloud(u.uid);
-      else if(cfg.email&&cfg.pass)
-        fsAuth.signInWithEmailAndPassword(cfg.email,cfg.pass)
-          .catch(()=>toast('Cloud sync: sign-in failed — check Settings',true));
-    });
-  }catch(e){console.warn('Firebase init:',e.message);}
-}
-
-async function pullFromCloud(uid){
-  if(!fsDb||!uid) return;
-  updateFsBadge(true);
-  try{
-    const doc=await fsDb.collection('complytrack').doc(uid).get();
-    if(!doc.exists){pushToCloud(uid);return;}
-    const d=doc.data();
-    const cloudAt=d.at?new Date(d.at):new Date(0);
-    const localAt=settings.fsSyncAt?new Date(settings.fsSyncAt):new Date(0);
-    if(cloudAt>localAt){
-      if(confirm('☁️ Cloud data is newer ('+new Date(d.at).toLocaleDateString('en-AU')+').\nLoad from cloud?')){
-        const savedCfg=settings.fsCfg;
-        assets=d.assets||assets;users=d.users||users;clients=d.clients||clients;
-        complexes=d.complexes||complexes;types=d.types||types;
-        settings={...(d.settings||settings),fsCfg:savedCfg,fsSyncAt:d.at};
-        saveAll();
-        toast('☁️ Loaded from cloud');
-        goPage('assets');
-      }
-    }
-  }catch(e){toast('Cloud pull error: '+e.message,true);}
-}
-
-async function pushToCloud(uid){
-  if(!fsDb) return;
-  const u=uid||(fsAuth&&fsAuth.currentUser&&fsAuth.currentUser.uid);
-  if(!u) return;
-  clearTimeout(fsSyncTimer);fsSyncTimer=null;
-  try{
-    // Never store the password in Firestore — keep it local only
-    const safeCfg={...settings.fsCfg};delete safeCfg.pass;
-    const syncAt=new Date().toISOString();
-    await fsDb.collection('complytrack').doc(u).set(
-      {assets,users,clients,complexes,types,settings:{...settings,fsCfg:safeCfg},at:syncAt}
-    );
-    settings.fsSyncAt=syncAt;
-    S('aq_settings',settings);
+    const {initializeApp,getApps}=await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js');
+    const {getFirestore,doc,setDoc,onSnapshot}=await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+    const fbApp=getApps().length?getApps()[0]:initializeApp(cfg);
+    window._db=getFirestore(fbApp);
+    window._fbDoc=doc;window._fbSetDoc=setDoc;window._fbOnSnapshot=onSnapshot;
+    startFirebaseListener();
     updateFsBadge(true);
-    toast('☁️ Synced to cloud');
-    // Refresh last-synced label if settings page is open
-    const el=$('fs-last-sync');if(el)el.textContent=new Date(syncAt).toLocaleString('en-AU');
-  }catch(e){toast('Cloud sync failed: '+e.message,true);}
+  }catch(e){console.warn('Firebase init:',e.message);updateFsBadge(false);}
 }
 
-function scheduleFsSync(){
-  if(!fsAuth||!fsAuth.currentUser) return;
-  clearTimeout(fsSyncTimer);
-  // Debounce: write to Firestore only after 30s of inactivity
-  fsSyncTimer=setTimeout(()=>{
-    const u=fsAuth.currentUser;
-    if(u) pushToCloud(u.uid);
-  },30000);
+async function _doFsWrite(){
+  const safeCfg={...settings.fsCfg};delete safeCfg.pass;
+  _lastSyncTs=Date.now();
+  await window._fbSetDoc(window._fbDoc(window._db,'ct_sync','main'),{
+    assets,users,clients,complexes,types,
+    settings:{...settings,fsCfg:safeCfg},
+    updatedAt:_lastSyncTs,
+    updatedBy:CU?CU.username:'unknown'
+  });
+  settings.fsSyncAt=new Date().toISOString();
+  S('aq_settings',settings);
+  updateFsBadge(true);
+  const el=$('fs-last-sync');if(el)el.textContent=new Date(settings.fsSyncAt).toLocaleString('en-AU');
+}
+
+function syncToFirebase(){
+  if(!window._db) return;
+  clearTimeout(_syncTimeout);
+  _syncTimeout=setTimeout(async()=>{
+    try{await _doFsWrite();}
+    catch(e){toast('Cloud sync failed: '+e.message,true);updateFsBadge(false);}
+  },5000);
+}
+
+async function syncNow(){
+  if(!window._db){toast('Cloud sync not connected',true);return;}
+  clearTimeout(_syncTimeout);
+  toast('Syncing…');
+  try{await _doFsWrite();toast('☁️ Synced to cloud');}
+  catch(e){toast('Cloud sync failed: '+e.message,true);updateFsBadge(false);}
+}
+
+function startFirebaseListener(){
+  if(_unsubscribe){_unsubscribe();_unsubscribe=null;}
+  if(!window._db) return;
+  _unsubscribe=window._fbOnSnapshot(
+    window._fbDoc(window._db,'ct_sync','main'),
+    (snap)=>{
+      if(!snap.exists()){syncToFirebase();return;}
+      const data=snap.data();
+      const remoteTs=data.updatedAt||0;
+      if(remoteTs>_lastSyncTs){
+        const savedCfg=settings.fsCfg;
+        if(data.assets)    assets=data.assets;
+        if(data.users)     users=data.users;
+        if(data.clients)   clients=data.clients;
+        if(data.complexes) complexes=data.complexes;
+        if(data.types)     types=data.types;
+        if(data.settings)  settings={...data.settings,fsCfg:savedCfg};
+        S('aq_assets',assets);S('aq_users',users);S('aq_clients',clients);
+        S('aq_complexes',complexes);S('aq_types',types);S('aq_settings',settings);
+        if(ePage) goPage(ePage);
+        toast('☁️ Synced from cloud');
+        updateFsBadge(true);
+      }
+    },
+    (err)=>{console.warn('Firestore listener:',err.message);updateFsBadge(false);}
+  );
 }
 
 function updateFsBadge(ok){
@@ -902,37 +903,24 @@ function updateFsBadge(ok){
   else{el.textContent='○ Not set up';el.style.color='var(--tx3)';}
 }
 
-function saveFsConfig(){
-  const raw=$('fs-cfg-json').value.trim();
-  const email=$('fs-email').value.trim();
-  const pass=$('fs-pass').value;
-  if(!raw){toast('Paste your Firebase config JSON',true);return;}
-  if(!email||!pass){toast('Enter email and password for Firebase Auth',true);return;}
-  // Accept both proper JSON and JS object literal (unquoted keys)
-  let cfg;
-  try{cfg=JSON.parse(raw);}catch(e){
-    try{
-      const jsonStr=raw.replace(/([{,]\s*)(\w+)(\s*:)/g,'$1"$2"$3');
-      cfg=JSON.parse(jsonStr);
-    }catch(e2){toast('Invalid Firebase config — paste the JSON object from Firebase Console',true);return;}
-  }
-  if(!cfg.apiKey||!cfg.projectId){toast('Config missing apiKey or projectId',true);return;}
-  settings.fsCfg={...cfg,email,pass};
-  saveAll();
-  fsDb=null;fsAuth=null;
-  initFirebase();
-  renderSettings();
-  toast('Cloud sync configured — connecting…');
-}
-
 function disconnectCloud(){
   if(!confirm('Disconnect cloud sync?\nLocal data will be kept.')) return;
-  clearTimeout(fsSyncTimer);fsSyncTimer=null;
+  if(_unsubscribe){_unsubscribe();_unsubscribe=null;}
+  clearTimeout(_syncTimeout);_syncTimeout=null;
+  window._db=null;
   delete settings.fsCfg;delete settings.fsSyncAt;
   saveAll();
-  fsDb=null;fsAuth=null;
   renderSettings();
   toast('Cloud sync disconnected');
+}
+
+function reconnectCloud(){
+  if(!DSETTINGS||!DSETTINGS.fsCfg) return;
+  settings.fsCfg=JSON.parse(JSON.stringify(DSETTINGS.fsCfg));
+  saveAll();
+  initFirebase();
+  renderSettings();
+  toast('Reconnecting to cloud sync…');
 }
 
 // CT:SECTION:BOOT — DOMContentLoaded init
@@ -981,6 +969,9 @@ function loginUser(u){
   goPage('assets');
 }
 function doLogout(){
+  if(_unsubscribe){_unsubscribe();_unsubscribe=null;}
+  clearTimeout(_syncTimeout);_syncTimeout=null;
+  window._db=null;
   CU=null;try{ls('aq_sess',null);}catch(e){}
   $('login-screen').style.display='flex';
   $('nav').style.display='none';
@@ -3545,41 +3536,20 @@ function renderFsSection(){
       <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.7rem">
         <span id="fs-status" style="font-size:.82rem;font-weight:600;color:var(--tx3)">○ Connecting…</span>
       </div>
-      <div style="font-size:.78rem;color:var(--tx3);margin-bottom:.5rem">
-        Project: <strong style="color:var(--tx2)">${cfg.projectId||'—'}</strong>
-        &nbsp;·&nbsp; Account: <strong style="color:var(--tx2)">${cfg.email||'—'}</strong>
-      </div>
       <div style="font-size:.78rem;color:var(--tx3);margin-bottom:.9rem">
         Last synced: <span id="fs-last-sync">${settings.fsSyncAt?new Date(settings.fsSyncAt).toLocaleString('en-AU'):'Never'}</span>
       </div>
       <div style="display:flex;gap:.45rem">
-        <button class="btn bp2" onclick="const u=fsAuth&&fsAuth.currentUser;if(u)pushToCloud(u.uid);else toast('Not connected — check credentials',true)" style="flex:1">☁ Sync Now</button>
+        <button class="btn bp2" onclick="syncNow()" style="flex:1">☁ Sync Now</button>
         <button class="btn bd2 btn-sm" onclick="disconnectCloud()">Disconnect</button>
       </div>
     </div>`;
-    // Update badge now in case Firebase already authenticated
-    if(fsAuth&&fsAuth.currentUser) updateFsBadge(true);
-  } else {
+    if(window._db) updateFsBadge(true);
+  }else{
     el.innerHTML=`<div class="card" style="padding:1.15rem">
       <p style="font-size:.87rem;font-weight:700;margin-bottom:.55rem">☁️ Cloud Sync</p>
-      <p style="font-size:.8rem;color:var(--tx3);margin-bottom:.9rem">Sync data between devices using Firebase. Paste your config from <strong style="color:var(--tx2)">Firebase Console → Project Settings → Your apps → Web app</strong>.</p>
-      <div class="fg" style="margin-bottom:.6rem">
-        <label style="font-size:.78rem">Firebase Config JSON</label>
-        <textarea id="fs-cfg-json" placeholder='{"apiKey":"...","authDomain":"...","projectId":"...","storageBucket":"...","messagingSenderId":"...","appId":"..."}'
-          style="min-height:90px;font-size:.72rem;font-family:monospace">${typeof DFIREBASE_CFG!=='undefined'?JSON.stringify(DFIREBASE_CFG,null,2):''}</textarea>
-      </div>
-      <div class="fg" style="margin-bottom:.6rem">
-        <label style="font-size:.78rem">Firebase Auth Email</label>
-        <input type="email" id="fs-email" placeholder="your@email.com" style="padding:.5rem .68rem;border:1.5px solid var(--bd);border-radius:8px;font:inherit;font-size:.85rem;outline:none;width:100%">
-      </div>
-      <div class="fg" style="margin-bottom:.9rem">
-        <label style="font-size:.78rem">Firebase Auth Password</label>
-        <input type="password" id="fs-pass" style="padding:.5rem .68rem;border:1.5px solid var(--bd);border-radius:8px;font:inherit;font-size:.85rem;outline:none;width:100%">
-      </div>
-      <div style="font-size:.73rem;color:var(--tx3);margin-bottom:.75rem;background:var(--sf2);padding:.55rem .7rem;border-radius:6px">
-        ⓘ First create a <strong>Firebase Authentication</strong> user in the Firebase Console (Authentication → Users → Add user) with the email and password you enter above.
-      </div>
-      <button class="btn bp2" onclick="saveFsConfig()" style="width:100%">Save &amp; Connect</button>
+      <p style="font-size:.8rem;color:var(--tx3);margin-bottom:.9rem">Cloud sync is disconnected.</p>
+      <button class="btn bp2" onclick="reconnectCloud()" style="width:100%">☁ Reconnect</button>
     </div>`;
   }
 }
