@@ -829,6 +829,12 @@ let _syncTimeout=null,_lastSyncTs=0,_unsubscribe=null;
 let _leafletMap=null,_mapMarkers=[],_mapPickerMap=null,_mapPickerMarker=null;
 let openGroups=new Set();
 
+function runMigrations(){
+  const raypack=types.find(t=>t.name==='Raypack');
+  if(raypack){raypack.name='Hot Water';raypack.capLbl='Capacity (L)';}
+  assets.forEach(a=>{if(a.type==='Raypack')a.type='Hot Water';});
+}
+
 function initData(){
   users     = L('aq_users',    null)||cp(DUSERS);
   clients   = L('aq_clients',  null)||cp(DCLIENTS);
@@ -846,10 +852,7 @@ function initData(){
       types.push(cp(dt));
     }
   });
-  // Rename Raypack → Hot Water in types and assets
-  const raypack=types.find(t=>t.name==='Raypack');
-  if(raypack){raypack.name='Hot Water';raypack.capLbl='Capacity (L)';}
-  assets.forEach(a=>{if(a.type==='Raypack')a.type='Hot Water';});
+  runMigrations();
   // Purge clients not in DCLIENTS (removes old demo data after seed change)
   const validClientIds=new Set(DCLIENTS.map(c=>c.id));
   clients=clients.filter(c=>validClientIds.has(c.id)||!DCLIENTS.length);
@@ -934,8 +937,10 @@ function startFirebaseListener(){
         if(data.complexes) complexes=data.complexes;
         if(data.types)     types=data.types;
         if(data.settings)  settings={...data.settings,fsCfg:savedCfg};
+        runMigrations();
         S('aq_assets',assets);S('aq_users',users);S('aq_clients',clients);
         S('aq_complexes',complexes);S('aq_types',types);S('aq_settings',settings);
+        syncToFirebase();
         if(ePage) goPage(ePage);
         toast('☁️ Synced from cloud');
         updateFsBadge(true);
