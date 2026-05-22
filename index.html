@@ -1224,7 +1224,7 @@ function reportHistory(a){
 
   // Group into 3 categories
   const groups=[
-    {key:'service',   label:'📋 Service History',       icon:'📋', types:['standard','warmwater','tmv','pump','other']},
+    {key:'service',   label:'📋 Service History',       icon:'📋', types:['standard','warmwater','tmv','pump','hotwater','other']},
     {key:'reactive',  label:'⚡ Reactive Service History',icon:'⚡', types:['reactive']},
     {key:'leg',       label:'🦠 Legionella Disinfection History', icon:'🦠', types:['legionella']},
   ];
@@ -1234,7 +1234,7 @@ function reportHistory(a){
     const time=new Date(r.generatedAt).toLocaleTimeString('en-AU',{hour:'2-digit',minute:'2-digit'});
     const tech=users.find(u=>u.id===r.generatedBy);
     const svcDate=r.from?new Date(r.from+'T12:00:00').toLocaleDateString('en-AU',{day:'2-digit',month:'short',year:'numeric'}):'—';
-    const typeLabel={standard:'Service',reactive:'Reactive',legionella:'Legionella',warmwater:'Warm Water',tmv:'TMV',pump:'Pump',other:'Report'}[r.serviceType]||'Report';
+    const typeLabel={standard:'Service',reactive:'Reactive',legionella:'Legionella',warmwater:'Warm Water',tmv:'TMV',pump:'Pump',hotwater:'Hot Water',other:'Report'}[r.serviceType]||'Report';
     const actions=(r.actions||[]).map(act=>{
       const aDate=new Date(act.at).toLocaleDateString('en-AU',{day:'2-digit',month:'short',year:'numeric'});
       const aTime=new Date(act.at).toLocaleTimeString('en-AU',{hour:'2-digit',minute:'2-digit'});
@@ -1281,7 +1281,7 @@ function regenReport(rptId, assetId){
   const cl=clients.find(c=>c.id===ws.clientId);
   const cx=ws.cxId?complexes.find(x=>x.id===ws.cxId):null;
   // Derive type filter
-  const svcTypeMap={legionella:'Legionella Sterilising',warmwater:'Warm Water System',tmv:'TMV',pump:null};
+  const svcTypeMap={legionella:'Legionella Sterilising',warmwater:'Warm Water System',tmv:'TMV',pump:null,hotwater:'Hot Water'};
   const derivedTypeF=ws.typeF||(svcTypeMap[ws.serviceType||'standard']||'');
   const selIds=ws.selectedAssetIds;
   const rAssets=assets.filter(a=>
@@ -1691,14 +1691,14 @@ const WIZ_STEPS=[
   {id:'wiz-s5', icon:'✅', label:'Review'},
 ];
 // Wizard state
-let wizData={clientId:'',cxId:'',from:'',to:'',singleDay:true,serviceType:'standard',typeF:'',selectedAssetIds:null,techId:'',jobNumber:'',wwsItems:[],tmvItems:[],pumpItems:[],wwServiceInterval:'6month',extraNotes:''};
+let wizData={clientId:'',cxId:'',from:'',to:'',singleDay:true,serviceType:'standard',typeF:'',selectedAssetIds:null,techId:'',jobNumber:'',wwsItems:[],tmvItems:[],pumpItems:[],hwItems:[],wwServiceInterval:'6month',extraNotes:''};
 
-function setWizSvcType(t){wizData.serviceType=t;wizData.wwsItems=[];wizData.tmvItems=[];wizData.pumpItems=[];rerenderS3();}
+function setWizSvcType(t){wizData.serviceType=t;wizData.wwsItems=[];wizData.tmvItems=[];wizData.pumpItems=[];wizData.hwItems=[];rerenderS3();}
 
 function renderReports(){
   wizCur=0;
   // Always start with empty item selections so previous report doesn't bleed through
-  wizData.wwsItems=[];wizData.tmvItems=[];wizData.pumpItems=[];
+  wizData.wwsItems=[];wizData.tmvItems=[];wizData.pumpItems=[];wizData.hwItems=[];
   wizData.selectedAssetIds=null;wizData.jobNumber='';wizData.extraNotes='';
   // Set defaults
   const tod=new Date();
@@ -1874,6 +1874,15 @@ function renderWizS3(p){
             <div style="font-size:.71rem;color:var(--tx3)">Sewer / stormwater pumps</div>
           </div>
           ${wizData.serviceType==='pump'?'<span style="color:var(--blue)">✓</span>':''}
+        </div>
+        <div onclick="setWizSvcType('hotwater')"
+          style="display:flex;align-items:center;gap:.6rem;padding:.65rem .85rem;border-radius:8px;border:2px solid ${wizData.serviceType==='hotwater'?'var(--blue)':'var(--bd)'};background:${wizData.serviceType==='hotwater'?'#f0f6ff':'#fff'};cursor:pointer;transition:all .15s">
+          <span style="font-size:1.1rem">🔥</span>
+          <div style="flex:1">
+            <div style="font-size:.84rem;font-weight:700">Hot Water Service</div>
+            <div style="font-size:.71rem;color:var(--tx3)">Raypack, Heatpak, gas &amp; electric units</div>
+          </div>
+          ${wizData.serviceType==='hotwater'?'<span style="color:var(--blue)">✓</span>':''}
         </div>
         <div onclick="setWizSvcType('reactive')"
           style="display:flex;align-items:center;gap:.6rem;padding:.65rem .85rem;border-radius:8px;border:2px solid ${wizData.serviceType==='reactive'?'var(--blue)':'var(--bd)'};background:${wizData.serviceType==='reactive'?'#f0f6ff':'#fff'};cursor:pointer;transition:all .15s">
@@ -2064,6 +2073,7 @@ function rerenderS4(){
 
 function renderWizS4b(p){
   if(wizData.serviceType==='pump'){renderWizS4bPumps(p);return;}
+  if(wizData.serviceType==='hotwater'){renderWizS4bHotWater(p);return;}
   if(!wizData.wwsItems) wizData.wwsItems=[];
   if(!wizData.tmvItems) wizData.tmvItems=[];
 
@@ -2410,6 +2420,84 @@ function togglePumpAsset(assetId){
 function savePumpNotes(){const el=$('wpump-notes');if(el)wizData.extraNotes=el.value;}
 function rerenderS4bPumps(){savePumpNotes();renderWizS4bPumps($('wiz-panel'));}
 
+const HW_UNIT_TYPES=['Raypack','Heatpak','Gas HWU','Electric HWU','Solar HWU','Heat Pump HWU','Other'];
+
+function renderWizS4bHotWater(p){
+  if(!wizData.hwItems) wizData.hwItems=[];
+  const regHW=assets.filter(a=>
+    a.clientId===wizData.clientId &&
+    (!wizData.cxId||a.cxId===wizData.cxId) &&
+    a.type==='Hot Water'
+  ).sort((a,b)=>a.ref.localeCompare(b.ref,undefined,{numeric:true,sensitivity:'base'}));
+  const selectedHWIds=new Set(wizData.hwItems.filter(h=>h.assetId).map(h=>h.assetId));
+  function rc(r){return r==='Pass'?'var(--green)':r==='Fail'?'var(--red)':'var(--amber)';}
+  function hwCard(a){
+    const sel=selectedHWIds.has(a.id);
+    const item=wizData.hwItems.find(h=>h.assetId===a.id);
+    const utOpts=HW_UNIT_TYPES.map(u=>`<option${(item&&item.unitType)===u?' selected':''}>${u}</option>`).join('');
+    return`<div style="display:flex;align-items:stretch;gap:0;border-radius:8px;border:2px solid ${sel?'var(--blue)':'var(--bd)'};background:${sel?'#f0f6ff':'#fff'};margin-bottom:.45rem;overflow:hidden;cursor:pointer" onclick="toggleHwAsset('${a.id}')">
+      <div style="width:44px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:${sel?'var(--blue)':'var(--sf2)'};font-size:1.1rem;color:#fff">${sel?'✓':''}</div>
+      <div style="flex:1;padding:.55rem .75rem;min-width:0">
+        <div style="font-weight:700;font-size:.87rem;font-family:monospace">${a.ref} <span style="font-family:inherit;font-weight:400;color:var(--tx3);font-size:.8rem">${[a.make,a.model].filter(Boolean).join(' ')||''}</span></div>
+        <div style="font-size:.75rem;color:var(--tx3)">${a.loc||''}${a.cap?' · '+a.cap:''}</div>
+      </div>
+      ${sel?`<div style="display:flex;flex-direction:column;gap:.3rem;padding:.4rem .6rem;justify-content:center" onclick="event.stopPropagation()">
+        <select style="padding:.3rem .45rem;border:1.5px solid var(--bd);border-radius:6px;font:inherit;font-size:.78rem;outline:none"
+          onchange="const idx=wizData.hwItems.findIndex(h=>h.assetId=='${a.id}');if(idx>=0)wizData.hwItems[idx].unitType=this.value">${utOpts}</select>
+        <select style="padding:.3rem .45rem;border:1.5px solid var(--bd);border-radius:6px;font:inherit;font-size:.78rem;outline:none;font-weight:600;color:${rc(item?item.result:'Pass')}"
+          onchange="const idx=wizData.hwItems.findIndex(h=>h.assetId=='${a.id}');if(idx>=0)wizData.hwItems[idx].result=this.value;this.style.color=this.value==='Pass'?'var(--green)':this.value==='Fail'?'var(--red)':'var(--amber)'">
+          <option${(item&&item.result)==='Pass'?' selected':''}>Pass</option>
+          <option${(item&&item.result)==='Fail'?' selected':''}>Fail</option>
+          <option${(item&&item.result)==='Repaired'?' selected':''}>Repaired</option>
+        </select>
+      </div>`:''}
+    </div>`;
+  }
+  const manualItems=wizData.hwItems.filter(h=>!h.fromRegister);
+  const manualHTML=manualItems.map(item=>{
+    const i=wizData.hwItems.indexOf(item);
+    const utOpts=HW_UNIT_TYPES.map(u=>`<option${(item.unitType||HW_UNIT_TYPES[0])===u?' selected':''}>${u}</option>`).join('');
+    return`<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr auto;gap:.4rem;align-items:center;padding:.5rem;background:#fffef5;border-radius:8px;border:1px solid var(--bd);border-left:3px solid var(--amber);margin-bottom:.4rem">
+      <input type="text" placeholder="Ref / ID" value="${item.ref||''}" style="padding:.4rem .6rem;border:1px solid var(--bd);border-radius:6px;font:inherit;font-size:.82rem;outline:none" oninput="wizData.hwItems[${i}].ref=this.value">
+      <input type="text" placeholder="Make / Model" value="${item.model||''}" style="padding:.4rem .6rem;border:1px solid var(--bd);border-radius:6px;font:inherit;font-size:.82rem;outline:none" oninput="wizData.hwItems[${i}].model=this.value">
+      <select style="padding:.4rem .6rem;border:1px solid var(--bd);border-radius:6px;font:inherit;font-size:.82rem;outline:none" onchange="wizData.hwItems[${i}].unitType=this.value">${utOpts}</select>
+      <select style="padding:.4rem .6rem;border:1px solid var(--bd);border-radius:6px;font:inherit;font-size:.82rem;outline:none" onchange="wizData.hwItems[${i}].result=this.value">
+        <option${(item.result||'')==='Pass'?' selected':''}>Pass</option>
+        <option${(item.result||'')==='Fail'?' selected':''}>Fail</option>
+        <option${(item.result||'')==='Repaired'?' selected':''}>Repaired</option>
+      </select>
+      <button onclick="wizData.hwItems.splice(${i},1);rerenderS4bHW()" class="btn bd2 btn-sm" style="padding:.35rem .5rem">✕</button>
+    </div>`;
+  }).join('');
+  p.innerHTML=`
+    <p style="font-size:.88rem;color:var(--tx2);margin-bottom:1.1rem">Select hot water units from the asset register for this service report.</p>
+    <div style="margin-bottom:1.25rem">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.6rem">
+        <div>
+          <div style="font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--navy)">🔥 Hot Water Units</div>
+          <div style="font-size:.71rem;color:var(--tx3);margin-top:.1rem">Tap to select · ${selectedHWIds.size} selected</div>
+        </div>
+        <button class="btn bg2 btn-sm" onclick="saveHwNotes();wizData.hwItems.push({ref:'',model:'',unitType:'Raypack',result:'Pass',fromRegister:false});rerenderS4bHW()" style="white-space:nowrap">+ Add Unit</button>
+      </div>
+      ${regHW.length?regHW.map(a=>hwCard(a)).join(''):`<div style="padding:.6rem .75rem;background:var(--sf2);border-radius:8px;font-size:.82rem;color:var(--tx3);text-align:center;margin-bottom:.4rem">No Hot Water assets found in register for this client/complex</div>`}
+    </div>
+    ${manualItems.length?`<div style="font-size:.71rem;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--amber);margin:.6rem 0 .35rem">Manually Added</div>${manualHTML}`:''}
+    <div class="fg">
+      <label>Additional Notes / Observations</label>
+      <textarea id="whw-notes" style="min-height:75px" placeholder="Temperature readings, pressure, condition notes…" oninput="wizData.extraNotes=this.value">${wizData.extraNotes||''}</textarea>
+    </div>`;
+}
+function toggleHwAsset(assetId){
+  saveHwNotes();
+  if(!wizData.hwItems) wizData.hwItems=[];
+  const already=wizData.hwItems.findIndex(h=>h.assetId===assetId);
+  if(already>=0){wizData.hwItems.splice(already,1);}
+  else{const a=assets.find(x=>x.id==assetId);if(a)wizData.hwItems.push({assetId:a.id,ref:a.ref,model:[a.make,a.model].filter(Boolean).join(' '),loc:a.loc||'',unitType:HW_UNIT_TYPES[0],result:a.result||'Pass',fromRegister:true});}
+  rerenderS4bHW();
+}
+function saveHwNotes(){const el=$('whw-notes');if(el)wizData.extraNotes=el.value;}
+function rerenderS4bHW(){saveHwNotes();renderWizS4bHotWater($('wiz-panel'));}
+
 function renderWizS4c(p){
   const d=buildRptDataFromWiz();
   const T=settings.rptTpl||{};
@@ -2417,7 +2505,7 @@ function renderWizS4c(p){
   const cx=d.cx||{};
   const cxAddrStr=[cx.addr,cx.suburb,[cx.state,cx.postcode].filter(Boolean).join(' ')].filter(Boolean).join(', ');
   const svcDate=d.from?new Date(d.from+'T12:00:00').toLocaleDateString('en-AU',{day:'2-digit',month:'long',year:'numeric'}):new Date().toLocaleDateString('en-AU',{day:'2-digit',month:'long',year:'numeric'});
-  const svcTypeLabels={standard:'Service Report',reactive:'Reactive Service Report',warmwater:'Warm Water Service Report',tmv:'TMV Service Report',pump:'Pump Service Report',legionella:'Disinfection Certificate for Legionella Control',other:'Service Report'};
+  const svcTypeLabels={standard:'Service Report',reactive:'Reactive Service Report',warmwater:'Warm Water Service Report',tmv:'TMV Service Report',pump:'Pump Service Report',hotwater:'Hot Water Service Report',legionella:'Disinfection Certificate for Legionella Control',other:'Service Report'};
   const title=svcTypeLabels[d.serviceType||'standard'];
   const secHdr=(icon,label)=>`<div style="font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#0a2540;background:#e3eaf6;padding:.38rem .65rem;border-left:3px solid ${bc};margin-bottom:.6rem">${icon} ${label}</div>`;
 
@@ -2516,9 +2604,31 @@ function renderWizS4c(p){
           </table>
         </div>`:''}
 
-        <!-- Registered assets — only show if not already covered by WWS/TMV/pump sections -->
+        <!-- Hot Water Units -->
+        ${d.hwItems&&d.hwItems.length>0?`
+        <div style="margin-bottom:.85rem">
+          ${secHdr('🔥','Hot Water Units')}
+          <table style="width:100%;border-collapse:collapse;font-size:.78rem">
+            <tr style="background:#f0f4fa">
+              <th style="padding:.3rem .5rem;border:1px solid #dde3ec;text-align:left;font-weight:700;color:#555">Ref</th>
+              <th style="padding:.3rem .5rem;border:1px solid #dde3ec;text-align:left;font-weight:700;color:#555">Unit Type</th>
+              <th style="padding:.3rem .5rem;border:1px solid #dde3ec;text-align:left;font-weight:700;color:#555">Make / Model</th>
+              <th style="padding:.3rem .5rem;border:1px solid #dde3ec;text-align:left;font-weight:700;color:#555">Location</th>
+              <th style="padding:.3rem .5rem;border:1px solid #dde3ec;text-align:left;font-weight:700;color:#555">Result</th>
+            </tr>
+            ${d.hwItems.map(h=>`<tr>
+              <td style="padding:.3rem .5rem;border:1px solid #dde3ec;font-family:monospace;font-weight:600">${h.ref||'—'}</td>
+              <td style="padding:.3rem .5rem;border:1px solid #dde3ec">${h.unitType||'—'}</td>
+              <td style="padding:.3rem .5rem;border:1px solid #dde3ec">${h.model||'—'}</td>
+              <td style="padding:.3rem .5rem;border:1px solid #dde3ec">${h.loc||'—'}</td>
+              <td style="padding:.3rem .5rem;border:1px solid #dde3ec;font-weight:700;color:${h.result==='Pass'?'#2e7d32':h.result==='Fail'?'#c62828':'#e65100'}">${h.result||'Pass'}</td>
+            </tr>`).join('')}
+          </table>
+        </div>`:''}
+
+        <!-- Registered assets — only show if not already covered by WWS/TMV/pump/HW sections -->
         ${(()=>{
-          const coveredIds=new Set([...(d.wwsItems||[]),...(d.tmvItems||[]),...(d.pumpItems||[])].filter(x=>x.assetId).map(x=>String(x.assetId)));
+          const coveredIds=new Set([...(d.wwsItems||[]),...(d.tmvItems||[]),...(d.pumpItems||[]),...(d.hwItems||[])].filter(x=>x.assetId).map(x=>String(x.assetId)));
           const uncovered=(d.rAssets||[]).filter(a=>!coveredIds.has(String(a.id)));
           return uncovered.length>0 ? `
         <div style="margin-bottom:.85rem">
@@ -2609,7 +2719,7 @@ function renderWizS5(p){
         <div><div style="font-size:.67rem;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--tx3)">${wizData.singleDay?'Service Date':'Date Range'}</div>
           <div style="font-size:.86rem;font-weight:600;margin-top:.1rem">${wizData.singleDay?from:`${from} — ${to}`}</div></div>
         <div><div style="font-size:.67rem;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--tx3)">Service Type</div>
-          <div style="font-size:.86rem;font-weight:600;margin-top:.1rem">${(wizData.serviceType==='warmwater'?'🌡 Warm Water '+(wizData.wwServiceInterval==='12month'?'12 Month (Major)':'6 Month (Minor)'):(({standard:'📋 Service Report',reactive:'⚡ Reactive Service',legionella:'🦠 Legionella Certificate',tmv:'🚿 TMV Service',pump:'🔧 Pump Service',other:'📄 Other'})[wizData.serviceType]||'—'))}</div></div>
+          <div style="font-size:.86rem;font-weight:600;margin-top:.1rem">${(wizData.serviceType==='warmwater'?'🌡 Warm Water '+(wizData.wwServiceInterval==='12month'?'12 Month (Major)':'6 Month (Minor)'):(({standard:'📋 Service Report',reactive:'⚡ Reactive Service',legionella:'🦠 Legionella Certificate',tmv:'🚿 TMV Service',pump:'🔧 Pump Service',hotwater:'🔥 Hot Water Service',other:'📄 Other'})[wizData.serviceType]||'—'))}</div></div>
         <div><div style="font-size:.67rem;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--tx3)">Job Number</div>
           <div style="font-size:.86rem;font-weight:600;margin-top:.1rem;font-family:monospace">${wizData.jobNumber||'<span style="color:var(--tx3);font-family:inherit;font-weight:400">Not set</span>'}</div></div>
         <div><div style="font-size:.67rem;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--tx3)">Assets</div>
@@ -2619,15 +2729,16 @@ function renderWizS5(p){
       </div>
     </div>
 
-    ${(d.rAssets.length===0&&(!d.wwsItems||d.wwsItems.length===0)&&(!d.tmvItems||d.tmvItems.length===0)&&(!d.pumpItems||d.pumpItems.length===0))?`<div style="background:var(--amber-bg);border-radius:var(--r);padding:.75rem 1rem;font-size:.83rem;color:var(--amber);border:1px solid #ffe0b2">⚠️ No assets found for these filters. The report will be empty.</div>`:''}
+    ${(d.rAssets.length===0&&(!d.wwsItems||d.wwsItems.length===0)&&(!d.tmvItems||d.tmvItems.length===0)&&(!d.pumpItems||d.pumpItems.length===0)&&(!d.hwItems||d.hwItems.length===0))?`<div style="background:var(--amber-bg);border-radius:var(--r);padding:.75rem 1rem;font-size:.83rem;color:var(--amber);border:1px solid #ffe0b2">⚠️ No assets found for these filters. The report will be empty.</div>`:''}
 
     <!-- Systems summary in review -->
-    ${(wizData.wwsItems&&wizData.wwsItems.length>0)||(wizData.tmvItems&&wizData.tmvItems.length>0)||(wizData.pumpItems&&wizData.pumpItems.length>0)?`
+    ${(wizData.wwsItems&&wizData.wwsItems.length>0)||(wizData.tmvItems&&wizData.tmvItems.length>0)||(wizData.pumpItems&&wizData.pumpItems.length>0)||(wizData.hwItems&&wizData.hwItems.length>0)?`
       <div style="background:var(--sf2);border-radius:var(--r);padding:.75rem 1rem;margin-bottom:.75rem">
         <div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--tx3);margin-bottom:.5rem">Systems to be Reported</div>
         ${wizData.wwsItems&&wizData.wwsItems.length>0?`<div style="font-size:.82rem;margin-bottom:.3rem">🌡 <strong>${wizData.wwsItems.length}</strong> Warm Water System${wizData.wwsItems.length!==1?'s':''}: ${wizData.wwsItems.map(w=>w.ref||'—').join(', ')}</div>`:''}
         ${wizData.tmvItems&&wizData.tmvItems.length>0?`<div style="font-size:.82rem;margin-bottom:.3rem">🚿 <strong>${wizData.tmvItems.length}</strong> TMV${wizData.tmvItems.length!==1?'s':''}: ${wizData.tmvItems.map(t=>t.ref||'—').join(', ')}</div>`:''}
-        ${wizData.pumpItems&&wizData.pumpItems.length>0?`<div style="font-size:.82rem">🔧 <strong>${wizData.pumpItems.length}</strong> Pump${wizData.pumpItems.length!==1?'s':''}: ${wizData.pumpItems.map(p=>p.ref||'—').join(', ')}</div>`:''}
+        ${wizData.pumpItems&&wizData.pumpItems.length>0?`<div style="font-size:.82rem;margin-bottom:.3rem">🔧 <strong>${wizData.pumpItems.length}</strong> Pump${wizData.pumpItems.length!==1?'s':''}: ${wizData.pumpItems.map(p=>p.ref||'—').join(', ')}</div>`:''}
+        ${wizData.hwItems&&wizData.hwItems.length>0?`<div style="font-size:.82rem">🔥 <strong>${wizData.hwItems.length}</strong> Hot Water Unit${wizData.hwItems.length!==1?'s':''}: ${wizData.hwItems.map(h=>h.ref||'—').join(', ')}</div>`:''}
       </div>`:''}
 
     <!-- Asset breakdown -->
@@ -2650,15 +2761,16 @@ function buildRptDataFromWiz(){
   const cId=wizData.clientId,cxId=wizData.cxId;
   const cl=clients.find(c=>c.id===cId);
   const cx=cxId?complexes.find(x=>x.id===cxId):null;
-  const svcTypeMap={legionella:'Legionella Sterilising',warmwater:'Warm Water System',tmv:'TMV',pump:null};
+  const svcTypeMap={legionella:'Legionella Sterilising',warmwater:'Warm Water System',tmv:'TMV',pump:null,hotwater:'Hot Water'};
   const derivedTypeF = wizData.typeF || (svcTypeMap[wizData.serviceType||'standard']||'');
 
-  // If the user explicitly ticked assets in the Systems step (wwsItems/tmvItems/pumpItems),
+  // If the user explicitly ticked assets in the Systems step (wwsItems/tmvItems/pumpItems/hwItems),
   // use only those asset IDs for rAssets — ignore the broad type filter
   const explicitIds=[
     ...(wizData.wwsItems||[]).filter(w=>w.assetId).map(w=>String(w.assetId)),
     ...(wizData.tmvItems||[]).filter(t=>t.assetId).map(t=>String(t.assetId)),
     ...(wizData.pumpItems||[]).filter(p=>p.assetId).map(p=>String(p.assetId)),
+    ...(wizData.hwItems||[]).filter(h=>h.assetId).map(h=>String(h.assetId)),
   ];
   const hasExplicit = explicitIds.length > 0;
 
@@ -2682,7 +2794,7 @@ function buildRptDataFromWiz(){
     recs.push({asset:a,log:l,tech:users.find(u=>u.id===l.tech)});
   }));
   const tech=wizData.techId?users.find(u=>u.id===wizData.techId):CU;
-  return{cl,cx,cxId,from:wizData.from,to:wizData.to,singleDay:wizData.singleDay,serviceType:wizData.serviceType||'standard',jobNumber:wizData.jobNumber,rAssets,recs,tech,typeF:wizData.typeF,wwsItems:wizData.wwsItems||[],tmvItems:wizData.tmvItems||[],pumpItems:wizData.pumpItems||[],wwServiceInterval:wizData.wwServiceInterval||'6month',extraNotes:wizData.extraNotes||''};
+  return{cl,cx,cxId,from:wizData.from,to:wizData.to,singleDay:wizData.singleDay,serviceType:wizData.serviceType||'standard',jobNumber:wizData.jobNumber,rAssets,recs,tech,typeF:wizData.typeF,wwsItems:wizData.wwsItems||[],tmvItems:wizData.tmvItems||[],pumpItems:wizData.pumpItems||[],hwItems:wizData.hwItems||[],wwServiceInterval:wizData.wwServiceInterval||'6month',extraNotes:wizData.extraNotes||''};
 }
 
 function buildRptData(){return buildRptDataFromWiz();}
@@ -2709,6 +2821,11 @@ function saveReportToAssets(d){
     if(!a && t.ref) a=assets.find(x=>x.ref===t.ref && x.clientId===(d.cl?d.cl.id:''));
     if(a) assetSet.set(a.id,a);
   });
+  (d.hwItems||[]).forEach(h=>{
+    let a = h.assetId ? assets.find(x=>x.id===h.assetId) : null;
+    if(!a && h.ref) a=assets.find(x=>x.ref===h.ref && x.clientId===(d.cl?d.cl.id:''));
+    if(a) assetSet.set(a.id,a);
+  });
   const allAssets=[...assetSet.values()];
   const snap={
     id:'rpt_'+Date.now(),
@@ -2726,6 +2843,7 @@ function saveReportToAssets(d){
     assetIds:d.rAssets.map(a=>a.id),
     wwsItems:d.wwsItems||[],
     tmvItems:d.tmvItems||[],
+    hwItems:d.hwItems||[],
     extraNotes:d.extraNotes||'',
     // Serialise wizard data so we can regenerate exactly
     wizSnap:{
@@ -2741,6 +2859,7 @@ function saveReportToAssets(d){
       selectedAssetIds:d.rAssets.map(a=>a.id),
       wwsItems:d.wwsItems||[],
       tmvItems:d.tmvItems||[],
+      hwItems:d.hwItems||[],
       extraNotes:d.extraNotes||'',
     }
   };
@@ -2776,6 +2895,7 @@ function openReportWizardFor(id){
   wizData.wwsItems  = [];
   wizData.tmvItems  = [];
   wizData.pumpItems = [];
+  wizData.hwItems   = [];
   wizData.selectedAssetIds = [a.id]; // pre-select this asset
   wizData.techId    = CU?CU.id:'';
 
@@ -2786,6 +2906,7 @@ function openReportWizardFor(id){
     'TMV':'tmv',
     'Sewer Pump':'pump',
     'Stormwater Pump':'pump',
+    'Hot Water':'hotwater',
   };
   wizData.serviceType = typeMap[a.type]||'standard';
 
@@ -3222,7 +3343,7 @@ function buildWarmWaterRpt(d){
 function buildStandardRpt(d){
   const T=settings.rptTpl||{},sec=T.sections||{};
   const bc=T.col||'#0a2540',co=T.co||'ComplyTrack';
-  const svcTypeLabels={standard:'Service Report',reactive:'Reactive Service Report',warmwater:'Warm Water Service Report',tmv:'TMV Service Report',pump:'Pump Service Report',other:'Service Report'};
+  const svcTypeLabels={standard:'Service Report',reactive:'Reactive Service Report',warmwater:'Warm Water Service Report',tmv:'TMV Service Report',pump:'Pump Service Report',hotwater:'Hot Water Service Report',other:'Service Report'};
   const title=T.title||(svcTypeLabels[d.serviceType||'standard']||'Service Report');
   const tod=new Date().toLocaleDateString('en-AU',{day:'2-digit',month:'long',year:'numeric'});
   const svcDate=d.from?new Date(d.from+'T12:00:00').toLocaleDateString('en-AU',{day:'2-digit',month:'long',year:'numeric'}):tod;
@@ -3331,7 +3452,47 @@ function buildStandardRpt(d){
       </div>`;
     }
 
-    // Non-pump: full table with Make/Model, Serial, Notes
+    const isHotWater=d.serviceType==='hotwater';
+    if(isHotWater){
+      // Hot water report: Ref, Unit Type, Make/Model, Location, Pass/Fail — from hwItems
+      const rows=[];
+      d.rAssets.forEach(a=>{
+        const hi=(d.hwItems||[]).find(h=>String(h.assetId)===String(a.id));
+        const res=hi?hi.result:'—';
+        const resCol=res==='Pass'?'#2e7d32':res==='Fail'?'#c62828':'#e65100';
+        rows.push(`<tr>
+          ${tdMono(a.ref)}
+          ${td(hi?hi.unitType:(a.model||'Hot Water'))}
+          ${td([a.make,a.model].filter(Boolean).join(' ')||'—')}
+          ${td(a.loc||'—')}
+          <td style="padding:.45rem .6rem;border:1px solid #dde3ec;font-size:.83rem;font-weight:700;color:${resCol}">${res}</td>
+        </tr>`);
+      });
+      // Also include manually-added hot water items (no assetId)
+      (d.hwItems||[]).filter(h=>!h.assetId).forEach(h=>{
+        const res=h.result||'—';
+        const resCol=res==='Pass'?'#2e7d32':res==='Fail'?'#c62828':'#e65100';
+        rows.push(`<tr>
+          ${tdMono(h.ref||'—')}
+          ${td(h.unitType||'Hot Water')}
+          ${td(h.model||'—')}
+          ${td(h.loc||'—')}
+          <td style="padding:.45rem .6rem;border:1px solid #dde3ec;font-size:.83rem;font-weight:700;color:${resCol}">${res}</td>
+        </tr>`);
+      });
+      if(!rows.length) return '';
+      return `<div style="margin-bottom:1.5rem">
+        ${secHdr('🔥','Hot Water Units Serviced')}
+        <table style="width:100%;border-collapse:collapse">
+          <thead><tr style="background:#f0f4fa">
+            ${th('Ref / ID')}${th('Unit Type')}${th('Make / Model')}${th('Location')}${th('Result')}
+          </tr></thead>
+          <tbody>${rows.join('')}</tbody>
+        </table>
+      </div>`;
+    }
+
+    // Non-pump/non-hotwater: full table with Make/Model, Serial, Notes
     const seen=new Set();
     const rows=[];
     d.rAssets.forEach(a=>{
@@ -3534,7 +3695,7 @@ function emailFromRpt(){if(rptData)openEmailModal(rptData);else toast('Generate 
 function openEmailModal(d){
   const cl=d.cl||{},tech=d.tech||CU||{};
   const cx=d.cx||{};
-  const svcTypeLabels={standard:'Service Report',reactive:'Reactive Service',legionella:'Legionella Disinfection',warmwater:'Warm Water Service',tmv:'TMV Service',pump:'Pump Service',other:'Service Report'};
+  const svcTypeLabels={standard:'Service Report',reactive:'Reactive Service',legionella:'Legionella Disinfection',warmwater:'Warm Water Service',tmv:'TMV Service',pump:'Pump Service',hotwater:'Hot Water Service',other:'Service Report'};
   const svcLabel=svcTypeLabels[d.serviceType]||'Service Report';
   const svcDate=d.from?new Date(d.from+'T12:00:00').toLocaleDateString('en-AU',{day:'2-digit',month:'long',year:'numeric'}):new Date().toLocaleDateString('en-AU',{day:'2-digit',month:'long',year:'numeric'});
   const mo=d.from?new Date(d.from).toLocaleString('en-AU',{month:'long'}):new Date().toLocaleString('en-AU',{month:'long'});
