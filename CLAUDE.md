@@ -24,7 +24,7 @@ Live deployment: https://neil293.github.io/complytrack/
 
 **Two files, no dependencies:**
 
-- `index.html` — All CSS, HTML templates, and JavaScript logic (~3,500 lines). This is the entire application.
+- `index.html` — All CSS, HTML templates, and JavaScript logic (~3,700 lines). This is the entire application.
 - `data.js` — App config and seed data only. All constants start with `D` (e.g. `DASSETS`, `DUSERS`, `DSETTINGS`) and are consumed once by `initData()` on first load.
 
 **Data flow:**
@@ -51,13 +51,17 @@ Live deployment: https://neil293.github.io/complytrack/
 
 ## Key Conventions
 
-**IDs** are plain strings: `'c4'` for a client, `'cx_irt_04'` for a complex, `'wbg_tmv_001'` for an asset. When creating new records, generate IDs with `'id_'+Date.now()` or similar unique strings.
+**IDs** — seed data uses string IDs (`'c4'`, `'cx_irt_04'`, `'wbg_tmv_001'`). User-created records get numeric IDs from `Date.now()`. Always compare with loose equality (`==` / `!=`) so that `'1718000000000' == 1718000000000` matches. Never use `===` to look up records by ID.
 
 **Asset status** is computed (not stored) by `getStatus(a)` from `svcDate`, `intv` (interval), and `month`. The statuses are: `overdue`, `due`, `upcoming`, `complete`, `failed`, `pending`, `decomm`.
 
 **Asset interval** values: `'annual'`, `'biannual'`, `'quarterly'`, `'monthly'`.
 
-**Report history** is stored inside each asset as `a.log[]`. Each log entry has a `type` (`'svc'`, `'react'`, `'leg'`), a snapshot of the report HTML in `a.log[i].html`, and timestamps for print/email actions. `regenReport()` reconstructs a past report from this snapshot.
+**Asset GPS** — optional `lat` and `lng` fields (numbers). Edit asset modal has Latitude / Longitude inputs and a 📍 Pick on map button (`openMapPicker()`). Map infrastructure exists but the map tab is currently hidden.
+
+**Collapsible complex groups** — `renderAssets()` wraps each complex's cards in `.cx-group` divs. Clicking the header calls `toggleCxGroup(cxid)` which toggles `.open` and updates `openGroups` (a `Set`). Groups open automatically when a filter is active.
+
+**Report history** is stored on each asset as `a.reports[]`. Each entry has `serviceType`, `generatedAt`, `wizSnap` (full wizard state for regeneration), plus `wwsItems`, `tmvItems`, `hwItems` snapshots. `regenReport(r)` reconstructs a past report from `r.wizSnap`.
 
 **Modals** slide up from the bottom (`.mbg` + `.modal`). Open with `$('modal-id').classList.add('on')`, close by removing `'on'`. The backdrop is the `.mbg` element; the white panel inside it is `.modal`.
 
@@ -73,8 +77,9 @@ The wizard is 7 steps driven by `wizCur` (step index) and `wizData` (all selecti
 - `renderWizS1()` – `renderWizS7()` — one function per step
 - `renderWizS4b()` — **Systems step**: routes by `wizData.serviceType`:
   - `pump` → `renderWizS4bPumps()` (Sewer + Stormwater Pump selection)
+  - `hotwater` → `renderWizS4bHotWater()` (Hot Water asset selection with unit type + flow/return temps)
   - all others → WWS + TMV selection
-- `buildRptDataFromWiz()` — assembles `rptData` from `wizData`; uses `explicitIds` (assets ticked in the Systems step) to override the broad type filter
+- `buildRptDataFromWiz()` — assembles `rptData` from `wizData`; uses `explicitIds` (assets ticked in the Systems step) to override the broad type filter. **Item arrays are scoped to service type** — pump reports only get `pumpItems`, hotwater only gets `hwItems`, all others get `wwsItems` + `tmvItems`. This prevents stale wizard data from cross-contaminating unrelated assets.
 
 **`wizData` fields:**
 
@@ -82,15 +87,19 @@ The wizard is 7 steps driven by `wizCur` (step index) and `wizData` (all selecti
 |---|---|
 | `clientId`, `cxId` | Selected client and complex |
 | `from`, `to`, `singleDay` | Date range |
-| `serviceType` | `'standard'`, `'reactive'`, `'legionella'`, `'warmwater'`, `'tmv'`, `'pump'`, `'other'` |
+| `serviceType` | `'standard'`, `'reactive'`, `'legionella'`, `'warmwater'`, `'tmv'`, `'pump'`, `'hotwater'`, `'other'` |
 | `jobNumber`, `typeF` | Job number and optional asset type filter |
 | `techId` | Selected technician |
 | `wwsItems` | Warm Water System selections (from register or manual) |
 | `tmvItems` | TMV selections (from register or manual) |
 | `pumpItems` | Sewer/Stormwater Pump selections (from register or manual) |
+| `hwItems` | Hot Water unit selections (from register or manual) |
+| `wwServiceInterval` | `'6month'` or `'12month'` — warm water service sub-type |
 | `extraNotes` | Extra notes textarea value |
 
-Each item in `wwsItems` / `tmvItems` / `pumpItems` has: `{assetId?, ref, model, result, fromRegister}`.
+Each item in `wwsItems` / `tmvItems` has: `{assetId?, ref, model, loc, result, tempSet?, tempRet?, fromRegister}`.
+Each item in `pumpItems` has: `{assetId?, ref, model, type, result, fromRegister}`.
+Each item in `hwItems` has: `{assetId?, ref, model, loc, unitType, result, tempFlow?, tempRet?, fromRegister}`.
 
 ## Firebase Cloud Sync
 
@@ -102,11 +111,13 @@ Firebase is **optional** — the app works fully offline without it. The SDK is 
 
 **Sync strategy:**
 - `initFirebase()` — called in `loginUser()`; dynamically imports the Firebase ES module SDK, initialises Firestore, then calls `startFirebaseListener()`
-- `startFirebaseListener()` — attaches an `onSnapshot` real-time listener to `ct_sync/main`; on first snapshot if doc doesn't exist, calls `syncToFirebase()` to push local data; incoming remote writes are applied to global vars + localStorage, then the current page is re-rendered via `goPage(ePage)`
+- `startFirebaseListener()` — attaches an `onSnapshot` real-time listener to `ct_sync/main`; incoming remote writes are applied to global vars + localStorage, then `runMigrations()` is called. **Only writes back to Firestore if `runMigrations()` returns `true`** (i.e. a migration actually changed data). This prevents a sync loop where receiving data triggers a write-back which triggers another snapshot.
 - `syncToFirebase()` — called by `saveAll()`; 5 s debounced write to `ct_sync/main`
 - `syncNow()` — immediate (non-debounced) write; called by the Sync Now button in Settings
 - `_lastSyncTs` — set to `Date.now()` before each write so the listener can distinguish this session's own writes from remote changes and skip re-applying them
 - Listener and pending timeout are cleaned up on logout (`doLogout()`) and disconnect (`disconnectCloud()`)
+
+**`runMigrations()`** — called in `initData()` and in the `onSnapshot` handler after applying remote data. Applies one-time data renames (e.g. `Raypack` → `Hot Water`). Returns `true` if any data was changed, `false` otherwise.
 
 **Settings UI:** `renderFsSection()` injects the Cloud Sync card into `<div id="fs-sync-section">` in the Data tab. Shows status + Last synced + Sync Now / Disconnect when connected; Reconnect button when disconnected. Called from `renderSettings()`.
 
