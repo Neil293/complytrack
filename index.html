@@ -830,9 +830,11 @@ let _leafletMap=null,_mapMarkers=[],_mapPickerMap=null,_mapPickerMarker=null;
 let openGroups=new Set();
 
 function runMigrations(){
+  let changed=false;
   const raypack=types.find(t=>t.name==='Raypack');
-  if(raypack){raypack.name='Hot Water';raypack.capLbl='Capacity (L)';}
-  assets.forEach(a=>{if(a.type==='Raypack')a.type='Hot Water';});
+  if(raypack){raypack.name='Hot Water';raypack.capLbl='Capacity (L)';changed=true;}
+  assets.forEach(a=>{if(a.type==='Raypack'){a.type='Hot Water';changed=true;}});
+  return changed;
 }
 
 function initData(){
@@ -937,10 +939,10 @@ function startFirebaseListener(){
         if(data.complexes) complexes=data.complexes;
         if(data.types)     types=data.types;
         if(data.settings)  settings={...data.settings,fsCfg:savedCfg};
-        runMigrations();
+        const migrated=runMigrations();
         S('aq_assets',assets);S('aq_users',users);S('aq_clients',clients);
         S('aq_complexes',complexes);S('aq_types',types);S('aq_settings',settings);
-        syncToFirebase();
+        if(migrated) syncToFirebase();
         if(ePage) goPage(ePage);
         toast('☁️ Synced from cloud');
         updateFsBadge(true);
