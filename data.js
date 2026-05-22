@@ -96,10 +96,10 @@ const DCOMPLEXES=[
   {id:'cx_irt_18',clientId:'c4',name:'IRT Kangara Waters (Belconnen)',addr:'2 Joy Cummings Pl',suburb:'Belconnen',state:'ACT',postcode:'2617',contact:'',phone:'',email:'',notes:'',lat:-35.2388,lng:149.061},
   {id:'cx_irt_19',clientId:'c4',name:'IRT Dalmeny',addr:'50 Dalmeny Dr',suburb:'Dalmeny',state:'NSW',postcode:'2546',contact:'',phone:'',email:'',notes:'',lat:-36.1688,lng:150.118},
   {id:'cx_irt_20',clientId:'c4',name:'IRT Moruya',addr:'6-10 Evans St',suburb:'Moruya',state:'NSW',postcode:'2537',contact:'',phone:'',email:'',notes:'',lat:-35.9077,lng:150.0844},
-  // User-created complexes (preserve exact IDs)
-  {id:'cx1779331753208',clientId:'c4',name:'IRT Tarrawanna',addr:'74-80 Caldwell Ave',suburb:'Tarrawanna',state:'NSW',postcode:'2518',contact:'',phone:'',email:'',notes:'',lat:-34.3886,lng:150.8808},
-  {id:'cx1779335870567',clientId:'c4',name:'IRT Howard Court',addr:'27A Stewart St',suburb:'Wollongong',state:'NSW',postcode:'2500',contact:'',phone:'',email:'',notes:'',lat:-34.4248,lng:150.8936},
-  {id:'cx1779404749785',clientId:'c4',name:'IRT Braeside',addr:'155-161 Gipps Rd',suburb:'Gwynneville',state:'NSW',postcode:'2500',contact:'',phone:'',email:'',notes:'',lat:-34.4089,lng:150.8703},
+  // User-created complexes (preserve exact IDs and user's own naming/address)
+  {id:'cx1779331753208',clientId:'c4',name:'IRT Tarrawanna RCF',addr:'74/80 Caldwell Ave',suburb:'Tarrawanna',state:'NSW',postcode:'2518',contact:'',phone:'',email:'',notes:'',lat:-34.3886,lng:150.8808},
+  {id:'cx1779335870567',clientId:'c4',name:'IRT Howard Court',addr:'27a Stewart St',suburb:'Wollongong',state:'NSW',postcode:'2500',contact:'',phone:'',email:'',notes:'',lat:-34.4248,lng:150.8936},
+  {id:'cx1779404749785',clientId:'c4',name:'IRT Breaside',addr:'155-161 Gipps Road',suburb:'Keiraville',state:'NSW',postcode:'2500',contact:'',phone:'',email:'',notes:'',lat:-34.4089,lng:150.8703},
   {id:'cx1779412047091',clientId:'c4',name:'IRT Marco Polo Unanderra',addr:'66/70 Waples Rd',suburb:'Unanderra',state:'NSW',postcode:'2526',contact:'',phone:'',email:'',notes:'',lat:-34.4947,lng:150.8522},
   // New sites from IRT Compliance Schedule 2025
   {id:'cx_irt_21',clientId:'c4',name:'IRT Port Kembla',addr:'',suburb:'',state:'',postcode:'',contact:'',phone:'',email:'',notes:''},
