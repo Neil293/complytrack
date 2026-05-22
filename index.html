@@ -1409,7 +1409,7 @@ function saveAsset(){
     lng:parseFloat($('a-lng').value)||null,
   };
   if(!a.lat||!a.lng){delete a.lat;delete a.lng;}
-  if(eAId){const i=assets.findIndex(x=>x.id===eAId);a.log=assets[i].log||[];assets[i]=a;}
+  if(eAId){const i=assets.findIndex(x=>x.id==eAId);if(i<0){toast('Asset not found',true);return;}a.log=assets[i].log||[];assets.splice(i,1,a);}
   else{a.log=[];assets.push(a);}
   saveAll();
   // If opened from TMV wizard step, auto-select the new asset in tmvItems
@@ -1432,7 +1432,7 @@ function saveAsset(){
 }
 function deleteAsset(){
   ctConfirm('Delete this asset and all service history?',()=>{
-    assets=assets.filter(x=>x.id!==eAId);saveAll();closeM('m-asset');renderAssets();toast('Asset deleted');
+    assets=assets.filter(x=>x.id!=eAId);saveAll();closeM('m-asset');renderAssets();toast('Asset deleted');
   },'Delete Asset','Delete',true);
 }
 
