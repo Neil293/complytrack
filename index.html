@@ -2803,14 +2803,15 @@ function buildRptDataFromWiz(){
   const cx=cxId?complexes.find(x=>x.id===cxId):null;
   const svcTypeMap={legionella:'Legionella Sterilising',warmwater:'Warm Water System',tmv:'TMV',pump:null,hotwater:'Hot Water'};
   const derivedTypeF = wizData.typeF || (svcTypeMap[wizData.serviceType||'standard']||'');
+  const _st=wizData.serviceType||'standard';
+  const _isP=_st==='pump', _isHW=_st==='hotwater';
 
-  // If the user explicitly ticked assets in the Systems step (wwsItems/tmvItems/pumpItems/hwItems),
-  // use only those asset IDs for rAssets — ignore the broad type filter
+  // Only include explicit IDs from the item arrays relevant to this service type
   const explicitIds=[
-    ...(wizData.wwsItems||[]).filter(w=>w.assetId).map(w=>String(w.assetId)),
-    ...(wizData.tmvItems||[]).filter(t=>t.assetId).map(t=>String(t.assetId)),
-    ...(wizData.pumpItems||[]).filter(p=>p.assetId).map(p=>String(p.assetId)),
-    ...(wizData.hwItems||[]).filter(h=>h.assetId).map(h=>String(h.assetId)),
+    ...(!_isP&&!_isHW ? (wizData.wwsItems||[]).filter(w=>w.assetId).map(w=>String(w.assetId)) : []),
+    ...(!_isP&&!_isHW ? (wizData.tmvItems||[]).filter(t=>t.assetId).map(t=>String(t.assetId)) : []),
+    ...(_isP ? (wizData.pumpItems||[]).filter(p=>p.assetId).map(p=>String(p.assetId)) : []),
+    ...(_isHW ? (wizData.hwItems||[]).filter(h=>h.assetId).map(h=>String(h.assetId)) : []),
   ];
   const hasExplicit = explicitIds.length > 0;
 
@@ -2834,7 +2835,14 @@ function buildRptDataFromWiz(){
     recs.push({asset:a,log:l,tech:users.find(u=>u.id===l.tech)});
   }));
   const tech=wizData.techId?users.find(u=>u.id===wizData.techId):CU;
-  return{cl,cx,cxId,from:wizData.from,to:wizData.to,singleDay:wizData.singleDay,serviceType:wizData.serviceType||'standard',jobNumber:wizData.jobNumber,rAssets,recs,tech,typeF:wizData.typeF,wwsItems:wizData.wwsItems||[],tmvItems:wizData.tmvItems||[],pumpItems:wizData.pumpItems||[],hwItems:wizData.hwItems||[],wwServiceInterval:wizData.wwServiceInterval||'6month',extraNotes:wizData.extraNotes||''};
+  const st=wizData.serviceType||'standard';
+  const isP=st==='pump', isHW=st==='hotwater';
+  return{cl,cx,cxId,from:wizData.from,to:wizData.to,singleDay:wizData.singleDay,serviceType:st,jobNumber:wizData.jobNumber,rAssets,recs,tech,typeF:wizData.typeF,
+    wwsItems: (isP||isHW) ? [] : (wizData.wwsItems||[]),
+    tmvItems: (isP||isHW) ? [] : (wizData.tmvItems||[]),
+    pumpItems: isP ? (wizData.pumpItems||[]) : [],
+    hwItems: isHW ? (wizData.hwItems||[]) : [],
+    wwServiceInterval:wizData.wwServiceInterval||'6month',extraNotes:wizData.extraNotes||''};
 }
 
 function buildRptData(){return buildRptDataFromWiz();}
