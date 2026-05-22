@@ -2435,21 +2435,39 @@ function renderWizS4bHotWater(p){
     const sel=selectedHWIds.has(a.id);
     const item=wizData.hwItems.find(h=>h.assetId===a.id);
     const utOpts=HW_UNIT_TYPES.map(u=>`<option${(item&&item.unitType)===u?' selected':''}>${u}</option>`).join('');
-    return`<div style="display:flex;align-items:stretch;gap:0;border-radius:8px;border:2px solid ${sel?'var(--blue)':'var(--bd)'};background:${sel?'#f0f6ff':'#fff'};margin-bottom:.45rem;overflow:hidden;cursor:pointer" onclick="toggleHwAsset('${a.id}')">
-      <div style="width:44px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:${sel?'var(--blue)':'var(--sf2)'};font-size:1.1rem;color:#fff">${sel?'✓':''}</div>
-      <div style="flex:1;padding:.55rem .75rem;min-width:0">
-        <div style="font-weight:700;font-size:.87rem;font-family:monospace">${a.ref} <span style="font-family:inherit;font-weight:400;color:var(--tx3);font-size:.8rem">${[a.make,a.model].filter(Boolean).join(' ')||''}</span></div>
-        <div style="font-size:.75rem;color:var(--tx3)">${a.loc||''}${a.cap?' · '+a.cap:''}</div>
+    return`<div style="display:flex;flex-direction:column;border-radius:8px;border:2px solid ${sel?'var(--blue)':'var(--bd)'};background:${sel?'#f0f6ff':'#fff'};margin-bottom:.45rem;overflow:hidden">
+      <!-- Main row -->
+      <div style="display:flex;align-items:stretch;gap:0;cursor:pointer" onclick="toggleHwAsset('${a.id}')">
+        <div style="width:44px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:${sel?'var(--blue)':'var(--sf2)'};font-size:1.1rem;color:#fff">${sel?'✓':''}</div>
+        <div style="flex:1;padding:.55rem .75rem;min-width:0">
+          <div style="font-weight:700;font-size:.87rem;font-family:monospace">${a.ref} <span style="font-family:inherit;font-weight:400;color:var(--tx3);font-size:.8rem">${[a.make,a.model].filter(Boolean).join(' ')||''}</span></div>
+          <div style="font-size:.75rem;color:var(--tx3)">${a.loc||''}${a.cap?' · '+a.cap:''}</div>
+        </div>
+        ${sel?`<div style="display:flex;flex-direction:column;gap:.3rem;padding:.4rem .6rem;justify-content:center" onclick="event.stopPropagation()">
+          <select style="padding:.3rem .45rem;border:1.5px solid var(--bd);border-radius:6px;font:inherit;font-size:.78rem;outline:none"
+            onchange="const idx=wizData.hwItems.findIndex(h=>h.assetId=='${a.id}');if(idx>=0)wizData.hwItems[idx].unitType=this.value">${utOpts}</select>
+          <select style="padding:.3rem .45rem;border:1.5px solid var(--bd);border-radius:6px;font:inherit;font-size:.78rem;outline:none;font-weight:600;color:${rc(item?item.result:'Pass')}"
+            onchange="const idx=wizData.hwItems.findIndex(h=>h.assetId=='${a.id}');if(idx>=0)wizData.hwItems[idx].result=this.value;this.style.color=this.value==='Pass'?'var(--green)':this.value==='Fail'?'var(--red)':'var(--amber)'">
+            <option${(item&&item.result)==='Pass'?' selected':''}>Pass</option>
+            <option${(item&&item.result)==='Fail'?' selected':''}>Fail</option>
+            <option${(item&&item.result)==='Repaired'?' selected':''}>Repaired</option>
+          </select>
+        </div>`:''}
       </div>
-      ${sel?`<div style="display:flex;flex-direction:column;gap:.3rem;padding:.4rem .6rem;justify-content:center" onclick="event.stopPropagation()">
-        <select style="padding:.3rem .45rem;border:1.5px solid var(--bd);border-radius:6px;font:inherit;font-size:.78rem;outline:none"
-          onchange="const idx=wizData.hwItems.findIndex(h=>h.assetId=='${a.id}');if(idx>=0)wizData.hwItems[idx].unitType=this.value">${utOpts}</select>
-        <select style="padding:.3rem .45rem;border:1.5px solid var(--bd);border-radius:6px;font:inherit;font-size:.78rem;outline:none;font-weight:600;color:${rc(item?item.result:'Pass')}"
-          onchange="const idx=wizData.hwItems.findIndex(h=>h.assetId=='${a.id}');if(idx>=0)wizData.hwItems[idx].result=this.value;this.style.color=this.value==='Pass'?'var(--green)':this.value==='Fail'?'var(--red)':'var(--amber)'">
-          <option${(item&&item.result)==='Pass'?' selected':''}>Pass</option>
-          <option${(item&&item.result)==='Fail'?' selected':''}>Fail</option>
-          <option${(item&&item.result)==='Repaired'?' selected':''}>Repaired</option>
-        </select>
+      <!-- Temp readings row (only when selected) -->
+      ${sel?`<div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;padding:.45rem .75rem;border-top:1px solid #d0daf0;background:#e8f0fe" onclick="event.stopPropagation()">
+        <div>
+          <div style="font-size:.7rem;font-weight:700;color:#555;margin-bottom:.2rem;text-transform:uppercase;letter-spacing:.3px">Flow Temp (°C)</div>
+          <input type="number" placeholder="e.g. 65" step="0.1" value="${item&&item.tempFlow!=null?item.tempFlow:''}"
+            style="width:100%;box-sizing:border-box;padding:.32rem .5rem;border:1px solid var(--bd);border-radius:5px;font:inherit;font-size:.83rem;outline:none"
+            oninput="const idx=wizData.hwItems.findIndex(h=>h.assetId=='${a.id}');if(idx>=0)wizData.hwItems[idx].tempFlow=this.value">
+        </div>
+        <div>
+          <div style="font-size:.7rem;font-weight:700;color:#555;margin-bottom:.2rem;text-transform:uppercase;letter-spacing:.3px">Return Temp (°C)</div>
+          <input type="number" placeholder="e.g. 60" step="0.1" value="${item&&item.tempRet!=null?item.tempRet:''}"
+            style="width:100%;box-sizing:border-box;padding:.32rem .5rem;border:1px solid var(--bd);border-radius:5px;font:inherit;font-size:.83rem;outline:none"
+            oninput="const idx=wizData.hwItems.findIndex(h=>h.assetId=='${a.id}');if(idx>=0)wizData.hwItems[idx].tempRet=this.value">
+        </div>
       </div>`:''}
     </div>`;
   }
@@ -2457,16 +2475,32 @@ function renderWizS4bHotWater(p){
   const manualHTML=manualItems.map(item=>{
     const i=wizData.hwItems.indexOf(item);
     const utOpts=HW_UNIT_TYPES.map(u=>`<option${(item.unitType||HW_UNIT_TYPES[0])===u?' selected':''}>${u}</option>`).join('');
-    return`<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr auto;gap:.4rem;align-items:center;padding:.5rem;background:#fffef5;border-radius:8px;border:1px solid var(--bd);border-left:3px solid var(--amber);margin-bottom:.4rem">
-      <input type="text" placeholder="Ref / ID" value="${item.ref||''}" style="padding:.4rem .6rem;border:1px solid var(--bd);border-radius:6px;font:inherit;font-size:.82rem;outline:none" oninput="wizData.hwItems[${i}].ref=this.value">
-      <input type="text" placeholder="Make / Model" value="${item.model||''}" style="padding:.4rem .6rem;border:1px solid var(--bd);border-radius:6px;font:inherit;font-size:.82rem;outline:none" oninput="wizData.hwItems[${i}].model=this.value">
-      <select style="padding:.4rem .6rem;border:1px solid var(--bd);border-radius:6px;font:inherit;font-size:.82rem;outline:none" onchange="wizData.hwItems[${i}].unitType=this.value">${utOpts}</select>
-      <select style="padding:.4rem .6rem;border:1px solid var(--bd);border-radius:6px;font:inherit;font-size:.82rem;outline:none" onchange="wizData.hwItems[${i}].result=this.value">
-        <option${(item.result||'')==='Pass'?' selected':''}>Pass</option>
-        <option${(item.result||'')==='Fail'?' selected':''}>Fail</option>
-        <option${(item.result||'')==='Repaired'?' selected':''}>Repaired</option>
-      </select>
-      <button onclick="wizData.hwItems.splice(${i},1);rerenderS4bHW()" class="btn bd2 btn-sm" style="padding:.35rem .5rem">✕</button>
+    return`<div style="background:#fffef5;border-radius:8px;border:1px solid var(--bd);border-left:3px solid var(--amber);margin-bottom:.4rem;overflow:hidden">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr auto;gap:.4rem;align-items:center;padding:.5rem">
+        <input type="text" placeholder="Ref / ID" value="${item.ref||''}" style="padding:.4rem .6rem;border:1px solid var(--bd);border-radius:6px;font:inherit;font-size:.82rem;outline:none" oninput="wizData.hwItems[${i}].ref=this.value">
+        <input type="text" placeholder="Make / Model" value="${item.model||''}" style="padding:.4rem .6rem;border:1px solid var(--bd);border-radius:6px;font:inherit;font-size:.82rem;outline:none" oninput="wizData.hwItems[${i}].model=this.value">
+        <select style="padding:.4rem .6rem;border:1px solid var(--bd);border-radius:6px;font:inherit;font-size:.82rem;outline:none" onchange="wizData.hwItems[${i}].unitType=this.value">${utOpts}</select>
+        <select style="padding:.4rem .6rem;border:1px solid var(--bd);border-radius:6px;font:inherit;font-size:.82rem;outline:none" onchange="wizData.hwItems[${i}].result=this.value">
+          <option${(item.result||'')==='Pass'?' selected':''}>Pass</option>
+          <option${(item.result||'')==='Fail'?' selected':''}>Fail</option>
+          <option${(item.result||'')==='Repaired'?' selected':''}>Repaired</option>
+        </select>
+        <button onclick="wizData.hwItems.splice(${i},1);rerenderS4bHW()" class="btn bd2 btn-sm" style="padding:.35rem .5rem">✕</button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.4rem;padding:.4rem .5rem .5rem;border-top:1px solid #f0e8c0">
+        <div>
+          <div style="font-size:.7rem;font-weight:700;color:#555;margin-bottom:.2rem;text-transform:uppercase;letter-spacing:.3px">Flow Temp (°C)</div>
+          <input type="number" placeholder="e.g. 65" step="0.1" value="${item.tempFlow||''}"
+            style="width:100%;box-sizing:border-box;padding:.32rem .5rem;border:1px solid var(--bd);border-radius:5px;font:inherit;font-size:.83rem;outline:none"
+            oninput="wizData.hwItems[${i}].tempFlow=this.value">
+        </div>
+        <div>
+          <div style="font-size:.7rem;font-weight:700;color:#555;margin-bottom:.2rem;text-transform:uppercase;letter-spacing:.3px">Return Temp (°C)</div>
+          <input type="number" placeholder="e.g. 60" step="0.1" value="${item.tempRet||''}"
+            style="width:100%;box-sizing:border-box;padding:.32rem .5rem;border:1px solid var(--bd);border-radius:5px;font:inherit;font-size:.83rem;outline:none"
+            oninput="wizData.hwItems[${i}].tempRet=this.value">
+        </div>
+      </div>
     </div>`;
   }).join('');
   p.innerHTML=`
@@ -2492,7 +2526,7 @@ function toggleHwAsset(assetId){
   if(!wizData.hwItems) wizData.hwItems=[];
   const already=wizData.hwItems.findIndex(h=>h.assetId===assetId);
   if(already>=0){wizData.hwItems.splice(already,1);}
-  else{const a=assets.find(x=>x.id==assetId);if(a)wizData.hwItems.push({assetId:a.id,ref:a.ref,model:[a.make,a.model].filter(Boolean).join(' '),loc:a.loc||'',unitType:HW_UNIT_TYPES[0],result:a.result||'Pass',fromRegister:true});}
+  else{const a=assets.find(x=>x.id==assetId);if(a)wizData.hwItems.push({assetId:a.id,ref:a.ref,model:[a.make,a.model].filter(Boolean).join(' '),loc:a.loc||'',unitType:HW_UNIT_TYPES[0],result:a.result||'Pass',tempFlow:'',tempRet:'',fromRegister:true});}
   rerenderS4bHW();
 }
 function saveHwNotes(){const el=$('whw-notes');if(el)wizData.extraNotes=el.value;}
@@ -2614,6 +2648,8 @@ function renderWizS4c(p){
               <th style="padding:.3rem .5rem;border:1px solid #dde3ec;text-align:left;font-weight:700;color:#555">Unit Type</th>
               <th style="padding:.3rem .5rem;border:1px solid #dde3ec;text-align:left;font-weight:700;color:#555">Make / Model</th>
               <th style="padding:.3rem .5rem;border:1px solid #dde3ec;text-align:left;font-weight:700;color:#555">Location</th>
+              <th style="padding:.3rem .5rem;border:1px solid #dde3ec;text-align:left;font-weight:700;color:#555">Flow Temp</th>
+              <th style="padding:.3rem .5rem;border:1px solid #dde3ec;text-align:left;font-weight:700;color:#555">Return Temp</th>
               <th style="padding:.3rem .5rem;border:1px solid #dde3ec;text-align:left;font-weight:700;color:#555">Result</th>
             </tr>
             ${d.hwItems.map(h=>`<tr>
@@ -2621,6 +2657,8 @@ function renderWizS4c(p){
               <td style="padding:.3rem .5rem;border:1px solid #dde3ec">${h.unitType||'—'}</td>
               <td style="padding:.3rem .5rem;border:1px solid #dde3ec">${h.model||'—'}</td>
               <td style="padding:.3rem .5rem;border:1px solid #dde3ec">${h.loc||'—'}</td>
+              <td style="padding:.3rem .5rem;border:1px solid #dde3ec;color:#555">${h.tempFlow!=null&&h.tempFlow!==''?h.tempFlow+'°C':'—'}</td>
+              <td style="padding:.3rem .5rem;border:1px solid #dde3ec;color:#555">${h.tempRet!=null&&h.tempRet!==''?h.tempRet+'°C':'—'}</td>
               <td style="padding:.3rem .5rem;border:1px solid #dde3ec;font-weight:700;color:${h.result==='Pass'?'#2e7d32':h.result==='Fail'?'#c62828':'#e65100'}">${h.result||'Pass'}</td>
             </tr>`).join('')}
           </table>
@@ -3454,7 +3492,8 @@ function buildStandardRpt(d){
 
     const isHotWater=d.serviceType==='hotwater';
     if(isHotWater){
-      // Hot water report: Ref, Unit Type, Make/Model, Location, Pass/Fail — from hwItems
+      // Hot water report: Ref, Unit Type, Make/Model, Location, Flow Temp, Return Temp, Result
+      const tdTemp=s=>`<td style="padding:.45rem .6rem;border:1px solid #dde3ec;font-size:.83rem;color:#555">${s}</td>`;
       const rows=[];
       d.rAssets.forEach(a=>{
         const hi=(d.hwItems||[]).find(h=>String(h.assetId)===String(a.id));
@@ -3462,21 +3501,24 @@ function buildStandardRpt(d){
         const resCol=res==='Pass'?'#2e7d32':res==='Fail'?'#c62828':'#e65100';
         rows.push(`<tr>
           ${tdMono(a.ref)}
-          ${td(hi?hi.unitType:(a.model||'Hot Water'))}
+          ${td(hi?hi.unitType:'—')}
           ${td([a.make,a.model].filter(Boolean).join(' ')||'—')}
           ${td(a.loc||'—')}
+          ${tdTemp(hi&&hi.tempFlow!=null&&hi.tempFlow!==''?hi.tempFlow+'°C':'—')}
+          ${tdTemp(hi&&hi.tempRet!=null&&hi.tempRet!==''?hi.tempRet+'°C':'—')}
           <td style="padding:.45rem .6rem;border:1px solid #dde3ec;font-size:.83rem;font-weight:700;color:${resCol}">${res}</td>
         </tr>`);
       });
-      // Also include manually-added hot water items (no assetId)
       (d.hwItems||[]).filter(h=>!h.assetId).forEach(h=>{
         const res=h.result||'—';
         const resCol=res==='Pass'?'#2e7d32':res==='Fail'?'#c62828':'#e65100';
         rows.push(`<tr>
           ${tdMono(h.ref||'—')}
-          ${td(h.unitType||'Hot Water')}
+          ${td(h.unitType||'—')}
           ${td(h.model||'—')}
           ${td(h.loc||'—')}
+          ${tdTemp(h.tempFlow!=null&&h.tempFlow!==''?h.tempFlow+'°C':'—')}
+          ${tdTemp(h.tempRet!=null&&h.tempRet!==''?h.tempRet+'°C':'—')}
           <td style="padding:.45rem .6rem;border:1px solid #dde3ec;font-size:.83rem;font-weight:700;color:${resCol}">${res}</td>
         </tr>`);
       });
@@ -3485,7 +3527,7 @@ function buildStandardRpt(d){
         ${secHdr('🔥','Hot Water Units Serviced')}
         <table style="width:100%;border-collapse:collapse">
           <thead><tr style="background:#f0f4fa">
-            ${th('Ref / ID')}${th('Unit Type')}${th('Make / Model')}${th('Location')}${th('Result')}
+            ${th('Ref / ID')}${th('Unit Type')}${th('Make / Model')}${th('Location')}${th('Flow Temp')}${th('Return Temp')}${th('Result')}
           </tr></thead>
           <tbody>${rows.join('')}</tbody>
         </table>
