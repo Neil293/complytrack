@@ -26,12 +26,14 @@ A single-file progressive web app for tracking water system compliance assets, g
 
 ### Assets
 - Track all water system assets across multiple clients and complexes
-- Asset types: Warm Water System, TMV, Sewer Pump, Stormwater Pump, Raypack, UV System, Legionella Sterilising
+- Asset types: Warm Water System, TMV, Sewer Pump, Stormwater Pump, Hot Water, UV System, Legionella Sterilising
 - Status tracking: Overdue, Due Soon, Upcoming, Complete, Failed, Pending, Decommissioned
 - Record service history with date, result, technician, notes and parts used
 - Filter by type, status, client or search by keyword
 - Auto-generate asset reference IDs (⚡ Generate button)
 - **Section / Area** field for grouping assets within a complex
+- **GPS Location** — latitude/longitude fields with map picker for future map view
+- Assets grouped by complex on the assets page — tap a complex header to expand/collapse
 
 ### Clients & Complexes
 - Manage multiple clients each with multiple complexes/sites
@@ -47,8 +49,9 @@ A single-file progressive web app for tracking water system compliance assets, g
   5. Systems (select assets relevant to the service type)
   6. Preview (review report contents before generating)
   7. Summary & Generate
-- **Report types:** Service Report, Reactive Service, Warm Water, TMV, Pump Service, Legionella Disinfection Certificate, Other
+- **Report types:** Service Report, Reactive Service, Warm Water, TMV, Pump Service, Hot Water Service, Legionella Disinfection Certificate, Other
 - **Pump Service** — Step 5 shows Sewer Pump and Stormwater Pump assets from the register; tap to select, set pass/fail per pump, or add pumps manually
+- **Hot Water Service** — Step 5 shows Hot Water assets from the register; tap to select, set unit type (Raypack, Heatpak, Gas HWU, Electric HWU, Solar HWU, Heat Pump HWU, Other), flow/return temperatures and pass/fail, or add units manually
 - **Legionella Certificate** includes: company letterhead, disinfection details, WWS table, TMV table, method used, serviced by section
 - All reports use consistent branded layout with company logo and colours
 - Print to PDF via browser print dialog
@@ -113,6 +116,7 @@ After setup, open the app — it connects automatically and shows **☁️ Conne
 - Firebase project: `complytrack-6ac7e`
 - Firestore path: `ct_sync/main` — single document for all app state
 - Real-time sync via `onSnapshot` listener; writes debounced 5 s after any change
+- The listener is read-only — it only writes back to Firestore when a data migration actually changes something
 - Free-tier usage: well within Spark limits (no reads charged for listeners after first load)
 
 ---
@@ -136,6 +140,7 @@ After setup, open the app — it connects automatically and shows **☁️ Conne
 | Warm Water Service | 🌡 | Warm water system inspection |
 | TMV Service | 🚿 | Thermostatic mixing valve service |
 | Pump Service | 🔧 | Sewer or stormwater pump service |
+| Hot Water Service | 🔥 | Raypack, Heatpak, gas & electric units |
 | Other | 📄 | General compliance report |
 
 ---

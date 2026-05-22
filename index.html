@@ -157,6 +157,27 @@ select.ctrl{padding:.42rem .65rem;border:1.5px solid var(--bd);border-radius:8px
 .moh:first-child{margin-top:0}
 .cxh{font-size:.79rem;font-weight:700;color:var(--navy);padding:.28rem .45rem .28rem .45rem;border-left:3px solid var(--blue);margin:.6rem 0 0;cursor:pointer;display:flex;align-items:center;gap:.35rem;user-select:none;border-radius:0 4px 4px 0}
 .cxh:hover{background:var(--sf3)}
+/* ── CALENDAR VIEW ── */
+.vtog{display:flex;border:1.5px solid var(--bd);border-radius:8px;overflow:hidden;flex-shrink:0}
+.vtog button{padding:.3rem .72rem;font-size:.78rem;font-weight:600;border:none;background:#fff;color:var(--tx2);cursor:pointer;transition:all .12s;white-space:nowrap}
+.vtog button:hover{background:var(--sf2)}
+.vtog button.on{background:var(--navy);color:#fff}
+.cal-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:.6rem;margin-bottom:1rem}
+@media(max-width:700px){.cal-grid{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:480px){.cal-grid{grid-template-columns:repeat(2,1fr)}}
+.cal-card{background:#fff;border:1.5px solid var(--bd);border-radius:10px;padding:.65rem .75rem .6rem;cursor:pointer;transition:border-color .15s,box-shadow .15s;border-top:3px solid var(--bd)}
+.cal-card:hover{border-color:var(--blue)}
+.cal-card.cc-red{border-top-color:var(--red)}
+.cal-card.cc-amb{border-top-color:var(--amber)}
+.cal-card.cc-grn{border-top-color:var(--green)}
+.cal-card.cc-blu{border-top-color:var(--blue)}
+.cal-card.cc-sel{box-shadow:0 0 0 2px var(--blue);border-color:var(--blue)}
+.cal-card.cc-empty{opacity:.4}
+.cal-mn{font-size:.72rem;font-weight:700;color:var(--tx2);text-transform:uppercase;letter-spacing:.5px;display:flex;align-items:center;gap:.3rem;margin-bottom:.15rem}
+.cal-yr{font-weight:500;color:var(--tx3);font-size:.65rem}
+.cal-now{font-size:.55rem;background:var(--navy);color:#fff;border-radius:3px;padding:.05rem .25rem}
+.cal-ct{font-size:1.5rem;font-weight:700;color:var(--navy);line-height:1;margin:.1rem 0 .25rem}
+.cal-sb{display:flex;flex-direction:column;gap:.1rem;font-size:.67rem;line-height:1.3}
 .cx-chevron{margin-left:auto;color:var(--tx3);font-size:.8rem;transition:transform .15s;flex-shrink:0}
 .cx-group.open>.cxh .cx-chevron{transform:rotate(180deg)}
 .cx-assets{display:none;margin-bottom:.3rem}
@@ -298,6 +319,10 @@ select.ctrl{padding:.42rem .65rem;border:1.5px solid var(--bd);border-radius:8px
 <div id="pg-upcoming" class="page">
   <div class="tb">
     <h1>Upcoming Services</h1>
+    <div class="vtog">
+      <button id="vt-cal" class="on" onclick="setUpView('cal')">🗓 Calendar</button>
+      <button id="vt-list" onclick="setUpView('list')">☰ List</button>
+    </div>
     <select class="ctrl" id="up-cf" onchange="renderUpcoming()"><option value="">All Clients</option></select>
   </div>
   <div id="upcoming-list"></div>
@@ -828,6 +853,7 @@ let confCB=null,rptData=null,_addingTMVFromWiz=false;
 let _syncTimeout=null,_lastSyncTs=0,_unsubscribe=null;
 let _leafletMap=null,_mapMarkers=[],_mapPickerMap=null,_mapPickerMarker=null;
 let openGroups=new Set();
+let upView='cal',upSelMo=null;
 
 function runMigrations(){
   let changed=false;
@@ -1471,22 +1497,140 @@ function saveSvc(){
 // ═══════════════════════════════════════════
 //  UPCOMING
 // ═══════════════════════════════════════════
+function setUpView(v){
+  upView=v;
+  if($('vt-cal'))$('vt-cal').classList.toggle('on',v==='cal');
+  if($('vt-list'))$('vt-list').classList.toggle('on',v==='list');
+  renderUpcoming();
+}
+
 function renderUpcoming(){
   const cf=$('up-cf'),pv=cf.value;
   cf.innerHTML='<option value="">All Clients</option>'+clients.map(c=>`<option value="${c.id}"${c.id===pv?' selected':''}>${c.name}</option>`).join('');
   const cF=cf.value;
-  const tod=new Date();tod.setHours(0,0,0,0);
+  if(upView==='cal') _renderCalView(cF);
+  else _renderListView(cF);
+}
 
-  let items=assets
+function _upItems(cF){
+  const tod=new Date();tod.setHours(0,0,0,0);
+  return assets
     .filter(a=>!cF||a.clientId===cF)
     .map(a=>{
-      const nxt=nxtSvcDate(a)||new Date(tod.getFullYear(),MONTHS.indexOf(a.month||'January'),1);
+      // Compute next service date — match getStatus() fallback logic
+      let nxt=nxtSvcDate(a);
+      if(!nxt){
+        const mi=MONTHS.indexOf(a.month||'January');
+        nxt=new Date(tod.getFullYear(),mi,1);
+        if(nxt<tod)nxt=new Date(tod.getFullYear()+1,mi,1);
+      }
       return{a,nxt,cl:clients.find(c=>c.id===a.clientId),st:getStatus(a)};
     })
-    .filter(x=>x.st!=='dc')
-    .sort((x,y)=>x.nxt-y.nxt);
+    .filter(x=>x.st!=='dc');
+}
 
-  // Group by month → complex
+function _renderCalView(cF){
+  const tod=new Date();tod.setHours(0,0,0,0);
+  const items=_upItems(cF);
+
+  // Rolling 12 months from current month
+  const months=[];
+  for(let i=0;i<12;i++){
+    const mo=new Date(tod.getFullYear(),tod.getMonth()+i,1);
+    const moEnd=new Date(mo.getFullYear(),mo.getMonth()+1,1);
+    const key=mo.getFullYear()*100+mo.getMonth();
+    // Month 0 also captures overdue (past) items
+    const moItems=i===0
+      ? items.filter(x=>x.nxt<moEnd)
+      : items.filter(x=>x.nxt>=mo&&x.nxt<moEnd);
+    months.push({mo,key,moItems});
+  }
+
+  // Default selected month: current month
+  if(upSelMo===null) upSelMo=tod.getFullYear()*100+tod.getMonth();
+  // If selected month is outside rolling window, reset to current
+  const validKeys=new Set(months.map(m=>m.key));
+  if(!validKeys.has(upSelMo)) upSelMo=tod.getFullYear()*100+tod.getMonth();
+
+  let html='<div class="cal-grid">';
+  months.forEach(({mo,key,moItems})=>{
+    const isCur=key===tod.getFullYear()*100+tod.getMonth();
+    const isSel=key===upSelMo;
+    const nOv=moItems.filter(x=>x.st==='ov').length;
+    const nDu=moItems.filter(x=>x.st==='du').length;
+    const nUp=moItems.filter(x=>x.st==='up'||x.st==='pe').length;
+    const nCo=moItems.filter(x=>x.st==='co').length;
+    const isEmpty=moItems.length===0;
+
+    let borderCls='cc-blu';
+    if(isEmpty) borderCls='';
+    else if(nOv) borderCls='cc-red';
+    else if(nDu) borderCls='cc-amb';
+    else if(nCo===moItems.length) borderCls='cc-grn';
+
+    let bits='';
+    if(nOv) bits+=`<span style="color:var(--red)">● ${nOv} overdue</span>`;
+    if(nDu) bits+=`<span style="color:var(--amber)">● ${nDu} due soon</span>`;
+    if(nUp) bits+=`<span style="color:var(--blue)">● ${nUp} upcoming</span>`;
+    if(nCo) bits+=`<span style="color:var(--green)">● ${nCo} complete</span>`;
+
+    const cls=[
+      'cal-card',
+      borderCls,
+      isSel?'cc-sel':'',
+      isEmpty?'cc-empty':''
+    ].filter(Boolean).join(' ');
+
+    html+=`<div class="${cls}" onclick="upSelMo=${key};renderUpcoming()">
+      <div class="cal-mn">${mo.toLocaleDateString('en-AU',{month:'short'}).toUpperCase()} <span class="cal-yr">${mo.getFullYear()}</span>${isCur?' <span class="cal-now">NOW</span>':''}</div>
+      <div class="cal-ct">${isEmpty?'—':moItems.length}</div>
+      <div class="cal-sb">${bits||'<span style="color:var(--tx3)">No assets</span>'}</div>
+    </div>`;
+  });
+  html+='</div>';
+
+  // Detail list for selected month
+  const sel=months.find(m=>m.key===upSelMo);
+  const selItems=(sel?sel.moItems:[]).slice().sort((a,b)=>a.nxt-b.nxt);
+  const moLabel=sel?sel.mo.toLocaleDateString('en-AU',{month:'long',year:'numeric'}):'';
+  html+=`<div class="moh">${moLabel}${selItems.length?' — '+selItems.length+' asset'+(selItems.length!==1?'s':''):''}</div>`;
+
+  if(selItems.length){
+    const byCx={};
+    selItems.forEach(x=>{
+      const ck=cxName(x.a.cxId)||'Unassigned';
+      if(!byCx[ck])byCx[ck]=[];
+      byCx[ck].push(x);
+    });
+    Object.keys(byCx).sort().forEach(cx=>{
+      const addr=byCx[cx][0]?cxAddr(byCx[cx][0].a.cxId):'';
+      html+=`<div class="cxh">${cx}${addr?` <span style="font-weight:400;color:var(--tx3);font-size:.72rem">${addr}</span>`:''}</div>
+        <div style="overflow-x:auto"><table class="tbl" style="margin-bottom:.45rem">
+        <thead><tr><th>Asset</th><th>Type</th><th>Next Service</th><th>Due In</th><th>Status</th><th></th></tr></thead><tbody>`;
+      byCx[cx].forEach(x=>{
+        const diff=Math.floor((x.nxt-tod)/86400000);
+        const ds=diff<0?`<span style="color:var(--red);font-weight:700">${Math.abs(diff)}d overdue</span>`:diff===0?`<span style="color:var(--amber);font-weight:700">Today</span>`:`<span>${diff}d</span>`;
+        html+=`<tr>
+          <td style="font-weight:600"><span class="dot" style="background:${tCol(x.a.type)};margin-right:.3rem"></span>${x.a.ref}</td>
+          <td>${tIcon(x.a.type)} ${x.a.type}</td>
+          <td>${x.nxt.toLocaleDateString('en-AU',{day:'2-digit',month:'short',year:'numeric'})}</td>
+          <td>${ds}</td><td>${stBadge(x.st)}</td>
+          <td><button class="btn bg2 btn-sm" onclick="openSvc(${x.a.id})">Service</button></td>
+        </tr>`;
+      });
+      html+='</tbody></table></div>';
+    });
+  }else{
+    html+='<div class="empty" style="margin-top:.35rem"><p>No assets due this month</p></div>';
+  }
+
+  $('upcoming-list').innerHTML=html;
+}
+
+function _renderListView(cF){
+  const tod=new Date();tod.setHours(0,0,0,0);
+  const items=_upItems(cF).sort((x,y)=>x.nxt-y.nxt);
+
   const byMo={};
   items.forEach(x=>{
     const mk=x.nxt.toLocaleDateString('en-AU',{month:'long',year:'numeric'});
