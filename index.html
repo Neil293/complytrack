@@ -3824,15 +3824,23 @@ function downloadReportPdf(onDone){
     return;
   }
   toast('Generating PDF…');
+  // Create wrapper at top-left so html2canvas captures from y=0, avoiding
+  // blank space caused by the page scroll offset being baked in.
+  const _w=document.createElement('div');
+  _w.style.cssText='position:fixed;top:0;left:0;width:210mm;background:#fff;z-index:-1;pointer-events:none';
+  _w.innerHTML=html;
+  document.body.appendChild(_w);
   html2pdf().set({
     margin:10,filename:fn,
     image:{type:'jpeg',quality:0.97},
-    html2canvas:{scale:2,useCORS:true,logging:false},
+    html2canvas:{scale:2,useCORS:true,logging:false,scrollX:0,scrollY:0},
     jsPDF:{unit:'mm',format:'a4',orientation:'portrait'}
-  }).from(html).save().then(()=>{
+  }).from(_w).save().then(()=>{
+    document.body.removeChild(_w);
     toast('PDF saved ✓');
     if(onDone) onDone();
   }).catch(()=>{
+    document.body.removeChild(_w);
     toast('PDF generation failed — opening print dialog',true);
     printReport();
     if(onDone) setTimeout(onDone,800);
