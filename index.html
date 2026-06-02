@@ -3824,23 +3824,20 @@ function downloadReportPdf(onDone){
     return;
   }
   toast('Generating PDF…');
-  // position:absolute at top:0 so html2canvas captures from y=0 (fixed-pos breaks h2c).
-  // The rpt-overlay (z-index:700) covers _w so the user doesn't see the flash.
-  const _w=document.createElement('div');
-  _w.style.cssText='position:absolute;top:0;left:0;width:794px;background:#fff;pointer-events:none';
-  _w.innerHTML=html;
-  document.body.appendChild(_w);
+  // Use ignoreElements to prevent fixed app UI (nav, overlay, modals) from being
+  // composited on top of the html2pdf render container and creating blank space.
   html2pdf().set({
     margin:10,filename:fn,
     image:{type:'jpeg',quality:0.97},
-    html2canvas:{scale:2,useCORS:true,logging:false,scrollX:0,scrollY:0},
+    html2canvas:{
+      scale:2,useCORS:true,logging:false,
+      ignoreElements:el=>['nav','rpt-overlay','toast','conf-wrap','hb'].includes(el.id)||el.classList.contains('mbg')
+    },
     jsPDF:{unit:'mm',format:'a4',orientation:'portrait'}
-  }).from(_w).save().then(()=>{
-    document.body.removeChild(_w);
+  }).from(html).save().then(()=>{
     toast('PDF saved ✓');
     if(onDone) onDone();
   }).catch(()=>{
-    if(document.body.contains(_w)) document.body.removeChild(_w);
     toast('PDF generation failed — opening print dialog',true);
     printReport();
     if(onDone) setTimeout(onDone,800);
