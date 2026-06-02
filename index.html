@@ -3688,7 +3688,7 @@ function buildStandardRpt(d){
       </div>`;
     }
 
-    // Non-pump/non-hotwater: full table with Make/Model, Serial, Notes
+    // Non-pump/non-hotwater: full table with Make/Model, Temp Set/Return, Notes
     const seen=new Set();
     const rows=[];
     d.rAssets.forEach(a=>{
@@ -3699,7 +3699,8 @@ function buildStandardRpt(d){
         ${td(tIcon(a.type)+' '+a.type)}
         ${td(a.loc||'—')}
         ${td([a.make,a.model].filter(Boolean).join(' ')||'—')}
-        <td style="padding:.45rem .6rem;border:1px solid #dde3ec;font-size:.8rem;font-family:monospace">${a.serial||'—'}</td>
+        ${td('—')}
+        ${td('—')}
         ${td(lr?rc(lr.log.result):'—')}
         <td style="padding:.45rem .6rem;border:1px solid #dde3ec;font-size:.8rem;color:#555">${lr&&lr.log.notes?lr.log.notes:'—'}</td>
       </tr>`);
@@ -3713,7 +3714,8 @@ function buildStandardRpt(d){
         ${td('🚿 TMV')}
         ${td(ra?ra.loc:(t.loc||'—'))}
         ${td(ra?[ra.make,ra.model].filter(Boolean).join(' '):(t.model||'—'))}
-        <td style="padding:.45rem .6rem;border:1px solid #dde3ec;font-size:.8rem;font-family:monospace">${ra?ra.serial:'—'}</td>
+        ${td(t.tempSet?t.tempSet+'°C':'—')}
+        ${td(t.tempRet?t.tempRet+'°C':'—')}
         <td style="padding:.45rem .6rem;border:1px solid #dde3ec;font-size:.83rem;font-weight:700;color:${t.result==='Pass'?'#2e7d32':t.result==='Fail'?'#c62828':'#e65100'}">${t.result||'—'}</td>
         <td style="padding:.45rem .6rem;border:1px solid #dde3ec;font-size:.8rem;color:#555">—</td>
       </tr>`);
@@ -3727,7 +3729,8 @@ function buildStandardRpt(d){
         ${td('🌡 Warm Water')}
         ${td(ra?ra.loc:(w.loc||'—'))}
         ${td(ra?[ra.make,ra.model].filter(Boolean).join(' '):(w.model||'—'))}
-        <td style="padding:.45rem .6rem;border:1px solid #dde3ec;font-size:.8rem;font-family:monospace">${ra?ra.serial:'—'}</td>
+        ${td(w.tempSet?w.tempSet+'°C':'—')}
+        ${td(w.tempRet?w.tempRet+'°C':'—')}
         <td style="padding:.45rem .6rem;border:1px solid #dde3ec;font-size:.83rem;font-weight:700;color:${w.result==='Pass'?'#2e7d32':w.result==='Fail'?'#c62828':'#e65100'}">${w.result||'—'}</td>
         <td style="padding:.45rem .6rem;border:1px solid #dde3ec;font-size:.8rem;color:#555">—</td>
       </tr>`);
@@ -3737,7 +3740,7 @@ function buildStandardRpt(d){
       ${secHdr('🔧','Assets Serviced')}
       <table style="width:100%;border-collapse:collapse">
         <thead><tr style="background:#f0f4fa">
-          ${th('Ref / ID')}${th('Type')}${th('Location')}${th('Make / Model')}${th('Serial')}${th('Result')}${th('Notes')}
+          ${th('Ref / ID')}${th('Type')}${th('Location')}${th('Make / Model')}${th('Temp Set')}${th('Temp Return')}${th('Result')}${th('Notes')}
         </tr></thead>
         <tbody>${rows.join('')}</tbody>
       </table>
