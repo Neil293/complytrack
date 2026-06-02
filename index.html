@@ -3824,29 +3824,26 @@ function downloadReportPdf(onDone){
     return;
   }
   toast('Generating PDF…');
-  // onclone removes all app elements from the cloned body so html2pdf's
-  // container is the only child at y=0 — no blank space at top.
-  // Uses one-argument form (html2canvas 1.4.1 API).
+  // Temporarily hide app pages so the html2pdf container is the only
+  // normal-flow element in body → sits at y=0 → no blank space at top.
+  // Fixed elements (nav, overlay) are ignored by ignoreElements.
+  const pages=document.querySelectorAll('.page');
+  pages.forEach(p=>p.style.display='none');
+  const restore=()=>pages.forEach(p=>p.style.display='');
   html2pdf().set({
     margin:10,filename:fn,
     image:{type:'jpeg',quality:0.97},
     html2canvas:{
-      scale:2,useCORS:true,logging:false,windowWidth:794,
-      onclone:clonedDoc=>{
-        ['login-screen','nav','hb','pg-assets','pg-upcoming','pg-clients',
-         'pg-reports','pg-settings','pg-map','rpt-overlay','toast','conf-wrap'].forEach(id=>{
-          const el=clonedDoc.getElementById(id);
-          if(el)el.remove();
-        });
-        clonedDoc.querySelectorAll('.mbg').forEach(el=>el.remove());
-        clonedDoc.body.style.cssText='margin:0;padding:0;background:#fff';
-      }
+      scale:2,useCORS:true,logging:false,
+      ignoreElements:el=>['nav','rpt-overlay','toast','conf-wrap','hb','login-screen'].includes(el.id)||el.classList.contains('mbg')
     },
     jsPDF:{unit:'mm',format:'a4',orientation:'portrait'}
   }).from(html).save().then(()=>{
+    restore();
     toast('PDF saved ✓');
     if(onDone) onDone();
   }).catch(()=>{
+    restore();
     toast('PDF generation failed — opening print dialog',true);
     printReport();
     if(onDone) setTimeout(onDone,800);
