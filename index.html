@@ -3824,25 +3824,31 @@ function downloadReportPdf(onDone){
     return;
   }
   toast('Generating PDF…');
-  // onclone strips the cloned doc body to just the report container so html2canvas
-  // captures from y=0 with no blank space from preceding app page content.
+  // position:absolute;top:0 ensures html2canvas starts at y=0 (no blank space).
+  // ignoreElements skips fixed app UI and all other body children so only the
+  // report wrapper and its content are rendered.
+  const _w=document.createElement('div');
+  _w.style.cssText='position:absolute;top:0;left:0;width:794px;background:#fff';
+  _w.innerHTML=html;
+  document.body.prepend(_w);
   html2pdf().set({
     margin:10,filename:fn,
     image:{type:'jpeg',quality:0.97},
     html2canvas:{
-      scale:2,useCORS:true,logging:false,
-      onclone:(clonedDoc,clonedEl)=>{
-        const b=clonedDoc.body;
-        b.style.cssText='margin:0;padding:0;background:#fff';
-        while(b.firstChild)b.removeChild(b.firstChild);
-        b.appendChild(clonedEl);
-      }
+      scale:2,useCORS:true,logging:false,windowWidth:794,
+      ignoreElements:el=>el!==_w&&(
+        ['nav','rpt-overlay','toast','conf-wrap','hb'].includes(el.id)||
+        el.classList.contains('mbg')||
+        el.parentElement===document.body
+      )
     },
     jsPDF:{unit:'mm',format:'a4',orientation:'portrait'}
-  }).from(html).save().then(()=>{
+  }).from(_w).save().then(()=>{
+    if(document.body.contains(_w))document.body.removeChild(_w);
     toast('PDF saved ✓');
     if(onDone) onDone();
   }).catch(()=>{
+    if(document.body.contains(_w))document.body.removeChild(_w);
     toast('PDF generation failed — opening print dialog',true);
     printReport();
     if(onDone) setTimeout(onDone,800);
