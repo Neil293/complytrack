@@ -1138,7 +1138,7 @@ function renderAssets(){
 
   let list=assets.filter(a=>{
     if(cF&&a.clientId!==cF)return false;
-    if(typeF&&a.type!==typeF)return false;
+    if(typeF&&a.type!==typeF&&!(typeF==='Legionella Sterilising'&&(a.type==='TMV'||a.type==='Warm Water System')))return false;
     if(statusF&&getStatus(a)!==statusF)return false;
     if(q){
       const cx=complexes.find(x=>x.id===a.cxId);
