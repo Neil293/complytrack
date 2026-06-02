@@ -3824,16 +3824,16 @@ function downloadReportPdf(onDone){
     return;
   }
   toast('Generating PDF…');
-  // Render wrapper at top:0 so html2canvas captures from y=0 with no blank space.
-  // Must be visible (no z-index:-1) so html2canvas can render it.
+  // position:absolute at top:0 so html2canvas captures from y=0 (fixed-pos breaks h2c).
+  // The rpt-overlay (z-index:700) covers _w so the user doesn't see the flash.
   const _w=document.createElement('div');
-  _w.style.cssText='position:fixed;top:0;left:0;width:794px;background:#fff;pointer-events:none';
+  _w.style.cssText='position:absolute;top:0;left:0;width:794px;background:#fff;pointer-events:none';
   _w.innerHTML=html;
   document.body.appendChild(_w);
   html2pdf().set({
     margin:10,filename:fn,
     image:{type:'jpeg',quality:0.97},
-    html2canvas:{scale:2,useCORS:true,logging:false},
+    html2canvas:{scale:2,useCORS:true,logging:false,scrollX:0,scrollY:0},
     jsPDF:{unit:'mm',format:'a4',orientation:'portrait'}
   }).from(_w).save().then(()=>{
     document.body.removeChild(_w);
