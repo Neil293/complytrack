@@ -3824,14 +3824,19 @@ function downloadReportPdf(onDone){
     return;
   }
   toast('Generating PDF…');
-  // Use ignoreElements to prevent fixed app UI (nav, overlay, modals) from being
-  // composited on top of the html2pdf render container and creating blank space.
+  // onclone strips the cloned doc body to just the report container so html2canvas
+  // captures from y=0 with no blank space from preceding app page content.
   html2pdf().set({
     margin:10,filename:fn,
     image:{type:'jpeg',quality:0.97},
     html2canvas:{
       scale:2,useCORS:true,logging:false,
-      ignoreElements:el=>['nav','rpt-overlay','toast','conf-wrap','hb'].includes(el.id)||el.classList.contains('mbg')
+      onclone:(clonedDoc,clonedEl)=>{
+        const b=clonedDoc.body;
+        b.style.cssText='margin:0;padding:0;background:#fff';
+        while(b.firstChild)b.removeChild(b.firstChild);
+        b.appendChild(clonedEl);
+      }
     },
     jsPDF:{unit:'mm',format:'a4',orientation:'portrait'}
   }).from(html).save().then(()=>{
