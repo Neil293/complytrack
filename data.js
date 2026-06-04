@@ -47,7 +47,7 @@
 const APP_CONFIG = {
   name:        'ComplyTrack',
   tagline:     'Water System Compliance',
-  version:     '1.3.0',
+  version:     '1.4.0',
   repo:        'https://github.com/Neil293/complytrack',
   liveUrl:     'https://neil293.github.io/complytrack/',
   // Default login credentials (change after first deploy)

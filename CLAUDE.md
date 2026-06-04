@@ -53,13 +53,15 @@ Live deployment: https://neil293.github.io/complytrack/
 
 **IDs** — seed data uses string IDs (`'c4'`, `'cx_irt_04'`, `'wbg_tmv_001'`). User-created records get numeric IDs from `Date.now()`. Always compare with loose equality (`==` / `!=`) so that `'1718000000000' == 1718000000000` matches. Never use `===` to look up records by ID.
 
+**Complex filter** — `cxF` (global string, default `''`) holds the selected complex ID on the assets page. Rendered as a horizontally-scrollable pill row (`#cx-pills`) above the type and status pills. Resets automatically when the client dropdown changes to a different client.
+
 **Asset status** is computed (not stored) by `getStatus(a)` from `svcDate`, `intv` (interval), and `month`. The statuses are: `overdue`, `due`, `upcoming`, `complete`, `failed`, `pending`, `decomm`.
 
 **Asset interval** values: `'annual'`, `'biannual'`, `'quarterly'`, `'monthly'`.
 
 **Asset GPS** — optional `lat` and `lng` fields (numbers). Edit asset modal has Latitude / Longitude inputs and a 📍 Pick on map button (`openMapPicker()`). Map infrastructure exists but the map tab is currently hidden.
 
-**Collapsible complex groups** — `renderAssets()` wraps each complex's cards in `.cx-group` divs. Clicking the header calls `toggleCxGroup(cxid)` which toggles `.open` and updates `openGroups` (a `Set`). Groups open automatically when a filter is active.
+**Collapsible complex groups** — `renderAssets()` wraps each complex's cards in `.cx-group` divs. Clicking the header calls `toggleCxGroup(cxid)` which toggles `.open` and updates `openGroups` (a `Set`). Groups always start collapsed regardless of active filters — the user must tap to expand.
 
 **Report history** is stored on each asset as `a.reports[]`. Each entry has `serviceType`, `generatedAt`, `wizSnap` (full wizard state for regeneration), plus `wwsItems`, `tmvItems`, `hwItems` snapshots. `regenReport(r)` reconstructs a past report from `r.wizSnap`.
 
@@ -80,6 +82,7 @@ The wizard is 7 steps driven by `wizCur` (step index) and `wizData` (all selecti
   - `hotwater` → `renderWizS4bHotWater()` (Hot Water asset selection with unit type + flow/return temps)
   - all others → WWS + TMV selection
 - `buildRptDataFromWiz()` — assembles `rptData` from `wizData`; uses `explicitIds` (assets ticked in the Systems step) to override the broad type filter. **Item arrays are scoped to service type** — pump reports only get `pumpItems`, hotwater only gets `hwItems`, all others get `wwsItems` + `tmvItems`. This prevents stale wizard data from cross-contaminating unrelated assets.
+- **Auto-selection** — on first entry to the Systems step (`wizData.wwsItems` and `wizData.tmvItems` both empty), all matching register assets are pre-populated as selected. Users can deselect individual assets. Subsequent entries to the same step preserve the user's selections.
 
 **`wizData` fields:**
 
