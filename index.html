@@ -1173,8 +1173,9 @@ function renderAssets(){
   const el=$('asset-list');
   if(!list.length){el.innerHTML='<div class="empty"><p>No assets found</p></div>';return;}
 
-  // Auto-expand all groups when a filter is active so results are visible
-  const filtered=!!(typeF||statusF||q);
+  // Auto-expand groups when a filter is active, but keep collapsed for Legionella
+  // filter (many complexes — user prefers to browse collapsed).
+  const filtered=!!(statusF||q||(typeF&&typeF!=='Legionella Sterilising'));
 
   // Sort groups by complex name
   const sortedKeys=Object.keys(grps).sort((a,b)=>cxName(a).localeCompare(cxName(b)));
@@ -2225,8 +2226,8 @@ function renderWizS4b(p){
 
   // Get warm water systems from asset register for this client/complex
   const regWWS = assets.filter(a=>
-    a.clientId===wizData.clientId &&
-    (!wizData.cxId || a.cxId===wizData.cxId) &&
+    a.clientId==wizData.clientId &&
+    (!wizData.cxId || a.cxId==wizData.cxId) &&
     (a.type==='Warm Water System' || a.type==='Legionella Sterilising')
   ).sort((a,b)=>a.ref.localeCompare(b.ref,undefined,{numeric:true,sensitivity:'base'}));
 
@@ -2437,8 +2438,8 @@ function removeTMV(i){
 function renderRegTMV(){
   // Get TMV assets from register for selected client/complex
   const regTMV=assets.filter(a=>
-    a.clientId===wizData.clientId &&
-    (!wizData.cxId||a.cxId===wizData.cxId) &&
+    a.clientId==wizData.clientId &&
+    (!wizData.cxId||a.cxId==wizData.cxId) &&
     (a.type==='TMV'||a.type==='Thermostatic Mixing Valve'||
      (a.ref&&a.ref.toUpperCase().includes('TMV')))
   ).sort((a,b)=>a.ref.localeCompare(b.ref,undefined,{numeric:true,sensitivity:'base'}));
