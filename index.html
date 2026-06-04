@@ -880,6 +880,18 @@ function initData(){
       types.push(cp(dt));
     }
   });
+  // Merge any new default complexes that don't exist in saved complexes yet
+  DCOMPLEXES.forEach(dc=>{
+    if(!complexes.find(cx=>cx.id==dc.id)){
+      complexes.push(cp(dc));
+    }
+  });
+  // Merge any new default assets that don't exist in saved assets yet
+  DASSETS.forEach(da=>{
+    if(!assets.find(a=>a.id==da.id)){
+      assets.push(cp(da));
+    }
+  });
   runMigrations();
   // Purge clients not in DCLIENTS (removes old demo data after seed change)
   const validClientIds=new Set(DCLIENTS.map(c=>c.id));
