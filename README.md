@@ -29,11 +29,11 @@ A single-file progressive web app for tracking water system compliance assets, g
 - Asset types: Warm Water System, TMV, Sewer Pump, Stormwater Pump, Hot Water, UV System, Legionella Sterilising
 - Status tracking: Overdue, Due Soon, Upcoming, Complete, Failed, Pending, Decommissioned
 - Record service history with date, result, technician, notes and parts used
-- Filter by type, status, client or search by keyword
+- Filter by complex, type, status, client or search by keyword — complex and type filters are scrollable pill rows
 - Auto-generate asset reference IDs (⚡ Generate button)
 - **Section / Area** field for grouping assets within a complex
 - **GPS Location** — latitude/longitude fields with map picker for future map view
-- Assets grouped by complex on the assets page — tap a complex header to expand/collapse
+- Assets grouped by complex on the assets page — all groups start collapsed, tap a header to expand
 
 ### Clients & Complexes
 - Manage multiple clients each with multiple complexes/sites
@@ -52,6 +52,7 @@ A single-file progressive web app for tracking water system compliance assets, g
 - **Report types:** Service Report, Reactive Service, Warm Water, TMV, Pump Service, Hot Water Service, Legionella Disinfection Certificate, Other
 - **Pump Service** — Step 5 shows Sewer Pump and Stormwater Pump assets from the register; tap to select, set pass/fail per pump, or add pumps manually
 - **Hot Water Service** — Step 5 shows Hot Water assets from the register; tap to select, set unit type (Raypack, Heatpak, Gas HWU, Electric HWU, Solar HWU, Heat Pump HWU, Other), flow/return temperatures and pass/fail, or add units manually
+- **Auto-selection** — WWS and TMV assets from the register are pre-selected when entering the Systems step; deselect any that don't apply
 - **Legionella Certificate** includes: company letterhead, disinfection details, WWS table, TMV table, method used, serviced by section
 - All reports use consistent branded layout with company logo and colours
 - Print to PDF via browser print dialog
