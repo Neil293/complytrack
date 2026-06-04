@@ -1198,7 +1198,7 @@ function renderAssets(){
 
   // Auto-expand groups when a filter is active, but keep collapsed for Legionella
   // filter (many complexes — user prefers to browse collapsed).
-  const filtered=!!(statusF||q||cxF||(typeF&&typeF!=='Legionella Sterilising'));
+  const filtered=false;
 
   // Sort groups by complex name
   const sortedKeys=Object.keys(grps).sort((a,b)=>cxName(a).localeCompare(cxName(b)));
