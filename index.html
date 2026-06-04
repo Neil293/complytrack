@@ -310,6 +310,7 @@ select.ctrl{padding:.42rem .65rem;border:1.5px solid var(--bd);border-radius:8px
     <select class="ctrl" id="asset-cf" onchange="renderAssets()"><option value="">All Clients</option></select>
   </div>
   <div class="sr" id="asset-stats"></div>
+  <div class="pills" id="cx-pills" style="overflow-x:auto;flex-wrap:nowrap;padding-bottom:.15rem"></div>
   <div class="pills" id="type-pills"></div>
   <div class="pills" id="status-pills"></div>
   <div id="asset-list"></div>
@@ -847,7 +848,7 @@ function S(k,v){_m[k]=v;ls(k,v);}
 //  STATE
 // ═══════════════════════════════════════════
 let CU=null,assets,users,clients,complexes,types,settings;
-let ePage='assets',typeF='',statusF='';
+let ePage='assets',typeF='',statusF='',cxF='';
 let eAId=null,eCId=null,eCxId=null,eUId=null,eTId=null;
 let confCB=null,rptData=null,_addingTMVFromWiz=false;
 let _syncTimeout=null,_lastSyncTs=0,_unsubscribe=null;
@@ -1146,10 +1147,13 @@ function renderAssets(){
   const cf=$('asset-cf'),pv=cf.value;
   cf.innerHTML='<option value="">All Clients</option>'+clients.map(c=>`<option value="${c.id}"${c.id===pv?' selected':''}>${c.name}</option>`).join('');
   const cF=cf.value;
+  // Reset complex filter when client changes and selected complex no longer belongs to client
+  if(cxF&&cF){const cx=complexes.find(x=>x.id==cxF);if(!cx||cx.clientId!==cF)cxF='';}
   const q=($('asset-q').value||'').toLowerCase();
 
   let list=assets.filter(a=>{
     if(cF&&a.clientId!==cF)return false;
+    if(cxF&&a.cxId!=cxF)return false;
     if(typeF&&a.type!==typeF&&!(typeF==='Legionella Sterilising'&&(a.type==='TMV'||a.type==='Warm Water System')))return false;
     if(statusF&&getStatus(a)!==statusF)return false;
     if(q){
@@ -1171,6 +1175,13 @@ function renderAssets(){
     <div class="sc blu"><div class="v">${st.up}</div><div class="l">Upcoming</div></div>`;
   $('asset-lbl').textContent=`(${list.length})`;
 
+  // Complex pills (scrollable, shown when there are complexes to filter)
+  const cxOptions=complexes.filter(x=>!cF||x.clientId===cF).sort((a,b)=>a.name.localeCompare(b.name));
+  $('cx-pills').innerHTML=cxOptions.length?
+    `<button class="pill${cxF===''?' on':''}" onclick="cxF='';renderAssets()">All Complexes</button>`+
+    cxOptions.map(x=>`<button class="pill${cxF==x.id?' on':''}" onclick="cxF='${x.id}';renderAssets()">${x.name}</button>`).join('')
+    :'';
+
   // Type pills
   $('type-pills').innerHTML=`<button class="pill${typeF===''?' on':''}" onclick="typeF='';renderAssets()">All Types</button>`+
     types.map((t,i)=>`<button class="pill${typeF===t.name?' on':''}" onclick="setTypeFilter(${i});">${t.icon} ${t.name}</button>`).join('');
@@ -1187,7 +1198,7 @@ function renderAssets(){
 
   // Auto-expand groups when a filter is active, but keep collapsed for Legionella
   // filter (many complexes — user prefers to browse collapsed).
-  const filtered=!!(statusF||q||(typeF&&typeF!=='Legionella Sterilising'));
+  const filtered=!!(statusF||q||cxF||(typeF&&typeF!=='Legionella Sterilising'));
 
   // Sort groups by complex name
   const sortedKeys=Object.keys(grps).sort((a,b)=>cxName(a).localeCompare(cxName(b)));
