@@ -2415,7 +2415,7 @@ function toggleAsset(assetId){
   const notesEl=$('wleg-notes');
   if(notesEl) wizData.extraNotes=notesEl.value;
   if(!wizData.wwsItems) wizData.wwsItems=[];
-  const already = wizData.wwsItems.findIndex(w=>w.assetId===assetId);
+  const already = wizData.wwsItems.findIndex(w=>w.assetId==assetId);
   if(already>=0){
     wizData.wwsItems.splice(already,1);
   } else {
@@ -2443,7 +2443,7 @@ function saveLegNotes(){
 function toggleTMV(assetId){
   saveLegNotes();
   if(!wizData.tmvItems) wizData.tmvItems=[];
-  const already=wizData.tmvItems.findIndex(t=>t.assetId===assetId);
+  const already=wizData.tmvItems.findIndex(t=>t.assetId==assetId);
   if(already>=0){
     wizData.tmvItems.splice(already,1);
   } else {
