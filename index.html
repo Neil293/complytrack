@@ -2254,14 +2254,15 @@ function renderWizS4b(p){
     (a.type==='Warm Water System' || a.type==='Legionella Sterilising')
   ).sort((a,b)=>a.ref.localeCompare(b.ref,undefined,{numeric:true,sensitivity:'base'}));
 
-  // Auto-select all register WWS assets on first entry (nothing selected yet)
-  if(!wizData.wwsItems.length && regWWS.length){
+  // Auto-select all register WWS assets on first entry only (flag prevents re-fire on rerender)
+  if(!wizData._autoSelectedWWS && regWWS.length){
     wizData.wwsItems=regWWS.map(a=>{
       const lastTemps=a.log&&[...a.log].reverse().find(l=>l.temps);
       return {assetId:a.id,ref:a.ref,model:[a.make,a.model].filter(Boolean).join(' '),
         loc:a.loc||'',serial:a.serial||'',result:'Pass',fromRegister:true,
         tempSet:lastTemps?lastTemps.temps.setPoint:'',tempRet:lastTemps?lastTemps.temps.returnTemp:''};
     });
+    wizData._autoSelectedWWS=true;
   }
 
   // Get TMVs for auto-selection check (defined before renderRegTMV so we can pre-populate)
@@ -2270,11 +2271,12 @@ function renderWizS4b(p){
     (!wizData.cxId||a.cxId==wizData.cxId) &&
     (a.type==='TMV'||a.type==='Thermostatic Mixing Valve'||(a.ref&&a.ref.toUpperCase().includes('TMV')))
   ).sort((a,b)=>a.ref.localeCompare(b.ref,undefined,{numeric:true,sensitivity:'base'}));
-  // Auto-select all register TMV assets on first entry
-  if(!wizData.tmvItems.length && regTMVAll.length){
+  // Auto-select all register TMV assets on first entry only (flag prevents re-fire on rerender)
+  if(!wizData._autoSelectedTMV && regTMVAll.length){
     wizData.tmvItems=regTMVAll.map(a=>({assetId:a.id,ref:a.ref,
       model:[a.make,a.model].filter(Boolean).join(' '),
       loc:a.loc||'',serial:a.serial||'',result:'Pass',fromRegister:true}));
+    wizData._autoSelectedTMV=true;
   }
 
   // Build set of selected asset IDs for quick lookup
