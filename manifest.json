@@ -1,0 +1,21 @@
+{
+  "name": "ComplyTrack",
+  "short_name": "ComplyTrack",
+  "description": "Water System Compliance — track assets, generate service reports and Legionella certificates.",
+  "start_url": "/complytrack/",
+  "scope": "/complytrack/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0a2540",
+  "theme_color": "#0a2540",
+  "icons": [
+    {
+      "src": "/complytrack/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["business", "productivity", "utilities"],
+  "lang": "en-AU"
+}
