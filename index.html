@@ -9,8 +9,16 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ComplyTrack">
+<meta name="theme-color" content="#0a2540">
+<link rel="manifest" href="/complytrack/manifest.json">
+<link rel="apple-touch-icon" href="/complytrack/icon.svg">
 <title>ComplyTrack — Water System Compliance</title>
   <script>document.addEventListener("DOMContentLoaded",()=>{if(typeof APP_CONFIG!=="undefined"){document.title=APP_CONFIG.name+" — "+APP_CONFIG.tagline;document.querySelectorAll('.app-ver').forEach(el=>el.textContent='v'+(APP_CONFIG.version||''));}})</script>
+<script>if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('/complytrack/sw.js').catch(()=>{}));}</script>
 <!-- html2pdf CDN (optional — PDF download; falls back to print dialog if offline) -->
 <script defer src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <!-- Leaflet (optional — map view only; app works fully without it) -->
