@@ -861,6 +861,8 @@ function runMigrations(){
   const raypack=types.find(t=>t.name==='Raypack');
   if(raypack){raypack.name='Hot Water';raypack.capLbl='Capacity (L)';changed=true;}
   assets.forEach(a=>{if(a.type==='Raypack'){a.type='Hot Water';changed=true;}});
+  // Clear old email template that included a Summary section (now removed from default)
+  if(settings.emailBody&&settings.emailBody.includes('Summary:')){delete settings.emailBody;changed=true;}
   return changed;
 }
 
@@ -3963,8 +3965,10 @@ function openEmailModal(d){
   const failed=d.recs?d.recs.filter(r=>r.log.result==='Fail').length:0;
   const cxAddrStr=d.cx?[d.cx.addr,d.cx.suburb,[d.cx.state,d.cx.postcode].filter(Boolean).join(' ')].filter(Boolean).join(', '):'';
 
-  // Build asset list covering register assets + wizard-selected items
-  const regLines=(d.rAssets||[]).map(a=>`  • ${a.ref} (${a.type}) — ${a.result||'—'}`);
+  // Build asset list: use wizard item arrays when present (they have more detail like temps).
+  // Only fall back to rAssets for non-wizard quick reports (e.g. "Log Service" from asset card).
+  const hasWizardItems=(d.wwsItems||[]).length||(d.tmvItems||[]).length||(d.pumpItems||[]).length||(d.hwItems||[]).length;
+  const regLines=hasWizardItems?[]:(d.rAssets||[]).map(a=>`  • ${a.ref} (${a.type}) — ${a.result||'—'}`);
   const wwsLines=(d.wwsItems||[]).map(w=>`  • ${w.ref||'—'} (Warm Water System) — ${w.result||'—'}${w.tempSet?', Set: '+w.tempSet+'°C':''}${w.tempRet?', Return: '+w.tempRet+'°C':''}`);
   const tmvLines=(d.tmvItems||[]).map(t=>`  • ${t.ref||'—'} (TMV) — ${t.result||'—'}`);
   const pumpLines=(d.pumpItems||[]).map(p=>`  • ${p.ref||'—'} (${p.type||'Pump'}) — ${p.result||'—'}`);
