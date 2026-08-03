@@ -788,6 +788,7 @@ select.ctrl{padding:.42rem .65rem;border:1.5px solid var(--bd);border-radius:8px
         <div class="fg"><label>Icon / Emoji</label><input type="text" id="t-icon" placeholder="🔩" maxlength="4" style="font-size:1.2rem"></div>
         <div class="fg"><label>Colour</label><input type="color" id="t-col" value="#1565c0" style="height:38px;padding:.1rem .3rem"></div>
         <div class="fg full"><label>Capacity Field Label</label><input type="text" id="t-caplbl" placeholder="e.g. Capacity (L), Power (kW)"></div>
+        <div class="fg full"><label>Report Type *</label><select id="t-rpt"><option value="">— Select report type —</option><option value="standard">Service Report</option><option value="warmwater">Warm Water Service</option><option value="legionella">Legionella Certificate</option><option value="tmv">TMV Service</option><option value="pump">Pump Service</option><option value="hotwater">Hot Water Service</option><option value="reactive">Reactive Service</option><option value="other">Other</option></select></div>
         <div class="fg full"><label>Default Interval</label><select id="t-intv"><option value="annual">Annual</option><option value="biannual">Bi-Annual</option><option value="quarterly">Quarterly</option><option value="monthly">Monthly</option></select></div>
       </div>
     </div>
@@ -2257,11 +2258,14 @@ function renderWizS4b(p){
   if(!wizData.wwsItems) wizData.wwsItems=[];
   if(!wizData.tmvItems) wizData.tmvItems=[];
 
-  // Get warm water systems from asset register for this client/complex
+  // Map serviceType to reportType filter for this Systems step
+  const svcTypeToRpt={standard:'standard',warmwater:'warmwater',legionella:'legionella',tmv:'tmv'};
+  const targetRpt=svcTypeToRpt[wizData.serviceType]||'standard';
+  const typeNames=types.filter(t=>t.reportType===targetRpt).map(t=>t.name);
   const regWWS = assets.filter(a=>
     a.clientId==wizData.clientId &&
     (!wizData.cxId || a.cxId==wizData.cxId) &&
-    (a.type==='Warm Water System' || a.type==='Legionella Sterilising')
+    typeNames.includes(a.type)
   ).sort((a,b)=>a.ref.localeCompare(b.ref,undefined,{numeric:true,sensitivity:'base'}));
 
   // Auto-select all register WWS assets on first entry only (flag prevents re-fire on rerender)
@@ -4293,13 +4297,14 @@ function deleteUser(){
 
 // ASSET TYPES
 function renderTypes(){
+  const rptLabels={standard:'Service Report',warmwater:'Warm Water Service',legionella:'Legionella Cert',tmv:'TMV Service',pump:'Pump Service',hotwater:'Hot Water Service',reactive:'Reactive Service',other:'Other'};
   $('types-list').innerHTML=types.map(t=>{
     const n=assets.filter(a=>a.type===t.name).length;
     return`<div class="card" style="padding:.78rem .95rem;display:flex;align-items:center;gap:.65rem;margin-bottom:.42rem">
       <span style="font-size:1.25rem;width:28px;text-align:center">${t.icon||'🔩'}</span>
       <span class="dot" style="background:${t.col||'#888'}"></span>
       <div style="flex:1"><div style="font-weight:600;font-size:.87rem">${t.name}</div>
-      <div style="font-size:.74rem;color:var(--tx3)">${t.capLbl||''} · ${n} asset${n!==1?'s':''} · ${t.intv||'annual'}</div></div>
+      <div style="font-size:.74rem;color:var(--tx3)">${rptLabels[t.reportType]||'—'} · ${n} asset${n!==1?'s':''} · ${t.intv||'annual'}</div></div>
       <button class="btn bg2 btn-sm" onclick="openEditType('${t.id}')">Edit</button>
     </div>`;
   }).join('');
@@ -4307,19 +4312,20 @@ function renderTypes(){
 function openAddType(){
   eTId=null;$('m-type-title').textContent='Add Asset Type';
   ['t-id','t-name','t-icon','t-caplbl'].forEach(i=>$(i).value='');
-  $('t-col').value='#1565c0';$('t-intv').value='annual';$('t-del').style.display='none';openM('m-type');
+  $('t-col').value='#1565c0';$('t-rpt').value='standard';$('t-intv').value='annual';$('t-del').style.display='none';openM('m-type');
 }
 function openEditType(id){
   const t=types.find(x=>x.id===id);if(!t)return;
   eTId=id;$('m-type-title').textContent='Edit Asset Type';
   $('t-id').value=t.id;$('t-name').value=t.name||'';$('t-icon').value=t.icon||'';
-  $('t-col').value=t.col||'#1565c0';$('t-caplbl').value=t.capLbl||'';$('t-intv').value=t.intv||'annual';
+  $('t-col').value=t.col||'#1565c0';$('t-caplbl').value=t.capLbl||'';$('t-rpt').value=t.reportType||'standard';$('t-intv').value=t.intv||'annual';
   $('t-del').style.display='';openM('m-type');
 }
 function saveType(){
   const name=$('t-name').value.trim();if(!name){toast('Enter a type name');return;}
+  const rpt=$('t-rpt').value.trim();if(!rpt){toast('Select a report type');return;}
   if(types.find(t=>t.name.toLowerCase()===name.toLowerCase()&&t.id!==eTId)){toast('Type name already exists');return;}
-  const t={id:eTId||('t'+Date.now()),name,icon:$('t-icon').value.trim()||'🔩',col:$('t-col').value,capLbl:$('t-caplbl').value.trim()||'Capacity / Size',intv:$('t-intv').value};
+  const t={id:eTId||('t'+Date.now()),name,icon:$('t-icon').value.trim()||'🔩',col:$('t-col').value,capLbl:$('t-caplbl').value.trim()||'Capacity / Size',reportType:rpt,intv:$('t-intv').value};
   if(eTId){const old=types.find(x=>x.id===eTId).name;types[types.findIndex(x=>x.id===eTId)]=t;if(old!==name)assets.forEach(a=>{if(a.type===old)a.type=name;});}
   else types.push(t);
   saveAll();closeM('m-type');renderTypes();toast(eTId?'Type updated':'Type added');

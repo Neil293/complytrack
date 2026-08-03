@@ -47,7 +47,7 @@
 const APP_CONFIG = {
   name:        'ComplyTrack',
   tagline:     'Water System Compliance',
-  version:     '1.4.0',
+  version:     '1.5.0',
   repo:        'https://github.com/Neil293/complytrack',
   liveUrl:     'https://neil293.github.io/complytrack/',
   // Default login credentials (change after first deploy)
@@ -60,14 +60,14 @@ const APP_CONFIG = {
 const MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
 
 const DTYPES=[
-  {id:'t1',name:'Warm Water System',   icon:'🌡',col:'#1565c0',capLbl:'Capacity (L)',      intv:'annual'},
-  {id:'t2',name:'Sewer Pump',          icon:'🔧',col:'#00796b',capLbl:'Power (kW)',         intv:'biannual'},
-  {id:'t3',name:'Stormwater Pump',     icon:'💧',col:'#558b2f',capLbl:'Power (kW)',         intv:'annual'},
-  {id:'t4',name:'Hot Water',             icon:'🔥',col:'#e65100',capLbl:'Capacity (L)',       intv:'annual'},
-  {id:'t5',name:'UV System',           icon:'☀️',col:'#6a1b9a',capLbl:'Flow Rate',          intv:'annual'},
-  {id:'t6',name:'Legionella Sterilising',icon:'🦠',col:'#c62828',capLbl:'Tank Volume (L)', intv:'quarterly'},
-  {id:'t7',name:'TMV',icon:'🔀',col:'#0097a7',capLbl:'Size (mm)',intv:'annual'},
-  {id:'t8',name:'Backflow Prevention',icon:'🔒',col:'#37474f',capLbl:'Size (mm)',intv:'annual'},
+  {id:'t1',name:'Warm Water System',   icon:'🌡',col:'#1565c0',capLbl:'Capacity (L)',      intv:'annual',reportType:'warmwater'},
+  {id:'t2',name:'Sewer Pump',          icon:'🔧',col:'#00796b',capLbl:'Power (kW)',         intv:'biannual',reportType:'pump'},
+  {id:'t3',name:'Stormwater Pump',     icon:'💧',col:'#558b2f',capLbl:'Power (kW)',         intv:'annual',reportType:'pump'},
+  {id:'t4',name:'Hot Water',             icon:'🔥',col:'#e65100',capLbl:'Capacity (L)',       intv:'annual',reportType:'hotwater'},
+  {id:'t5',name:'UV System',           icon:'☀️',col:'#6a1b9a',capLbl:'Flow Rate',          intv:'annual',reportType:'standard'},
+  {id:'t6',name:'Legionella Sterilising',icon:'🦠',col:'#c62828',capLbl:'Tank Volume (L)', intv:'quarterly',reportType:'legionella'},
+  {id:'t7',name:'TMV',icon:'🔀',col:'#0097a7',capLbl:'Size (mm)',intv:'annual',reportType:'tmv'},
+  {id:'t8',name:'Backflow Prevention',icon:'🔒',col:'#37474f',capLbl:'Size (mm)',intv:'annual',reportType:'standard'},
 ];
 
 const DCLIENTS=[
