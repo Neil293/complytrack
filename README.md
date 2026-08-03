@@ -49,7 +49,7 @@ A single-file progressive web app for tracking water system compliance assets, g
   5. Systems (select assets relevant to the service type)
   6. Preview (review report contents before generating)
   7. Summary & Generate
-- **Report types:** Service Report, Reactive Service, Warm Water, TMV, Pump Service, Hot Water Service, Legionella Disinfection Certificate, Other
+- **Report types:** Service Report, Reactive Service, Warm Water, TMV, Pump Service, Hot Water Service, Legionella Disinfection Certificate, Other — custom asset categories can be assigned to any report type
 - **Pump Service** — Step 5 shows Sewer Pump and Stormwater Pump assets from the register; tap to select, set pass/fail per pump, or add pumps manually
 - **Hot Water Service** — Step 5 shows Hot Water assets from the register; tap to select, set unit type (Raypack, Heatpak, Gas HWU, Electric HWU, Solar HWU, Heat Pump HWU, Other), flow/return temperatures and pass/fail, or add units manually
 - **Auto-selection** — WWS and TMV assets from the register are pre-selected when entering the Systems step; deselect any that don't apply
@@ -76,7 +76,7 @@ A single-file progressive web app for tracking water system compliance assets, g
 - **🏗 Company** — company name, ABN, phone, email, website, brand colour, report title, disclaimer
 - **👥 Users** — add/edit/delete users with roles (admin, supervisor, technician) and permissions
 - **🏢 Clients** — manage clients with colour coding
-- **🏷 Asset Types** — customise asset types with icons and colours
+- **🏷 Asset Types** — customise asset types with icons, colours, and assign each to a report type
 - **📄 Report Template** — configure report sections and branding
 - **⚙️ Data** — export CSV, backup JSON, restore from backup, reset all data, cloud sync
 

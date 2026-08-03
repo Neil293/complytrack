@@ -59,6 +59,8 @@ Live deployment: https://neil293.github.io/complytrack/
 
 **Asset interval** values: `'annual'`, `'biannual'`, `'quarterly'`, `'monthly'`.
 
+**Asset type reportType** — each asset type (in settings) has a `reportType` field (one of `'standard'`, `'warmwater'`, `'legionella'`, `'tmv'`, `'pump'`, `'hotwater'`, `'reactive'`, `'other'`) that determines which report type it appears in. When generating a report, only assets whose type's `reportType` matches the chosen report type are shown in the Systems selection step. Allows custom categories to be assigned to any report type.
+
 **Asset GPS** — optional `lat` and `lng` fields (numbers). Edit asset modal has Latitude / Longitude inputs and a 📍 Pick on map button (`openMapPicker()`). Map infrastructure exists but the map tab is currently hidden.
 
 **Collapsible complex groups** — `renderAssets()` wraps each complex's cards in `.cx-group` divs. Clicking the header calls `toggleCxGroup(cxid)` which toggles `.open` and updates `openGroups` (a `Set`). Groups always start collapsed regardless of active filters — the user must tap to expand.
