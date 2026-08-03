@@ -2554,14 +2554,13 @@ function rerenderS4b(){
 
 function renderWizS4bPumps(p){
   if(!wizData.pumpItems) wizData.pumpItems=[];
+  const pumpTypeNames=types.filter(t=>t.reportType==='pump').map(t=>t.name);
   const regPumps=assets.filter(a=>
     a.clientId===wizData.clientId &&
     (!wizData.cxId||a.cxId===wizData.cxId) &&
-    (a.type==='Sewer Pump'||a.type==='Stormwater Pump')
+    pumpTypeNames.includes(a.type)
   ).sort((a,b)=>a.ref.localeCompare(b.ref,undefined,{numeric:true,sensitivity:'base'}));
   const selectedPumpIds=new Set(wizData.pumpItems.filter(pp=>pp.assetId).map(pp=>pp.assetId));
-  const sewerPumps=regPumps.filter(a=>a.type==='Sewer Pump');
-  const stormPumps=regPumps.filter(a=>a.type==='Stormwater Pump');
   function rc(r){return r==='Pass'?'var(--green)':r==='Fail'?'var(--red)':'var(--amber)';}
   function pumpCard(a){
     const sel=selectedPumpIds.has(a.id);
@@ -2582,18 +2581,6 @@ function renderWizS4bPumps(p){
       </div>`:''}
     </div>`;
   }
-  function pumpSection(icon,label,list){
-    return`<div style="margin-bottom:1.25rem">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.6rem">
-        <div>
-          <div style="font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--navy)">${icon} ${label}</div>
-          <div style="font-size:.71rem;color:var(--tx3);margin-top:.1rem">Tap to select from asset register · ${list.filter(a=>selectedPumpIds.has(a.id)).length} selected</div>
-        </div>
-        <button class="btn bg2 btn-sm" onclick="savePumpNotes();wizData.pumpItems.push({ref:'',model:'',result:'Pass',fromRegister:false});rerenderS4bPumps()" style="white-space:nowrap">+ Add Pump</button>
-      </div>
-      ${list.length?list.map(a=>pumpCard(a)).join(''):`<div style="padding:.6rem .75rem;background:var(--sf2);border-radius:8px;font-size:.82rem;color:var(--tx3);text-align:center;margin-bottom:.4rem">No ${label.toLowerCase()} found in asset register for this client/complex</div>`}
-    </div>`;
-  }
   const manualItems=wizData.pumpItems.filter(pp=>!pp.fromRegister);
   const manualHTML=manualItems.map(item=>{
     const i=wizData.pumpItems.indexOf(item);
@@ -2610,8 +2597,16 @@ function renderWizS4bPumps(p){
   }).join('');
   p.innerHTML=`
     <p style="font-size:.88rem;color:var(--tx2);margin-bottom:1.1rem">Select pumps from the asset register for this service report.</p>
-    ${pumpSection('🔧','Sewer Pumps',sewerPumps)}
-    ${pumpSection('💧','Stormwater Pumps',stormPumps)}
+    <div style="margin-bottom:1.25rem">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.6rem">
+        <div>
+          <div style="font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--navy)">🔧 Pumps</div>
+          <div style="font-size:.71rem;color:var(--tx3);margin-top:.1rem">Tap to select from asset register · ${regPumps.filter(a=>selectedPumpIds.has(a.id)).length} selected</div>
+        </div>
+        <button class="btn bg2 btn-sm" onclick="savePumpNotes();wizData.pumpItems.push({ref:'',model:'',result:'Pass',fromRegister:false});rerenderS4bPumps()" style="white-space:nowrap">+ Add Pump</button>
+      </div>
+      ${regPumps.length?regPumps.map(a=>pumpCard(a)).join(''):`<div style="padding:.6rem .75rem;background:var(--sf2);border-radius:8px;font-size:.82rem;color:var(--tx3);text-align:center;margin-bottom:.4rem">No pumps found in asset register for this client/complex</div>`}
+    </div>
     ${manualItems.length?`<div style="font-size:.71rem;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--amber);margin:.6rem 0 .35rem">Manually Added</div>${manualHTML}`:''}
     <div class="fg">
       <label>Additional Notes / Observations</label>
