@@ -1,4 +1,4 @@
-const CACHE = 'complytrack-v1.4.0';
+const CACHE = 'complytrack-v1.5.1';
 const SHELL = [
   '/complytrack/',
   '/complytrack/index.html',
