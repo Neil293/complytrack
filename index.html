@@ -2259,9 +2259,10 @@ function renderWizS4b(p){
   if(!wizData.tmvItems) wizData.tmvItems=[];
 
   // Map serviceType to reportType filter for this Systems step
-  const svcTypeToRpt={standard:'standard',warmwater:'warmwater',legionella:'legionella',tmv:'tmv'};
-  const targetRpt=svcTypeToRpt[wizData.serviceType]||'standard';
-  const typeNames=types.filter(t=>t.reportType===targetRpt).map(t=>t.name);
+  const svcTypeToRpt={standard:'standard',warmwater:'warmwater',legionella:['warmwater','tmv'],tmv:'tmv'};
+  const targetRpts=svcTypeToRpt[wizData.serviceType]||'standard';
+  const targetRptArray=Array.isArray(targetRpts)?targetRpts:[targetRpts];
+  const typeNames=types.filter(t=>targetRptArray.includes(t.reportType)).map(t=>t.name);
   const regWWS = assets.filter(a=>
     a.clientId==wizData.clientId &&
     (!wizData.cxId || a.cxId==wizData.cxId) &&
