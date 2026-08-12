@@ -533,6 +533,7 @@ select.ctrl{padding:.42rem .65rem;border:1.5px solid var(--bd);border-radius:8px
         <button class="btn bg2" onclick="$('restore-f').click()">📂 Restore Backup</button>
         <input type="file" id="restore-f" accept=".json" style="display:none" onchange="restoreData(event)">
         <button class="btn bd2" onclick="ctConfirm('Reset ALL data to defaults?',()=>hardReset(true),'Reset','Reset',true)">🗑 Reset All Data</button>
+        <button class="btn by2" onclick="forceRefresh()">🔄 Force Refresh</button>
       </div>
     </div>
     <div id="fs-sync-section" style="max-width:480px;margin-top:1rem"></div>
@@ -1046,6 +1047,17 @@ function hardReset(keepNav){
   initData();
   if(keepNav){toast('Data reset to defaults');goPage('assets');}
   else{$('login-screen').style.display='flex';}
+}
+
+function forceRefresh(){
+  if('caches' in window){
+    caches.keys().then(names=>Promise.all(names.map(n=>caches.delete(n)))).then(()=>{
+      toast('Cache cleared, refreshing...');
+      setTimeout(()=>location.reload(),500);
+    });
+  }else{
+    location.reload();
+  }
 }
 
 // ═══════════════════════════════════════════
