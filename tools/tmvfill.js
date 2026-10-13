@@ -84,11 +84,11 @@
   const root = host.attachShadow({ mode: 'open' });
   root.innerHTML = `<style>
     *{box-sizing:border-box;font-family:system-ui,-apple-system,Roboto,Arial,sans-serif}
-    .bar{pointer-events:auto;position:fixed;right:10px;bottom:calc(10px + env(safe-area-inset-bottom));display:flex;gap:6px;align-items:center;background:#fff;padding:6px;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,.3);max-width:calc(100vw - 20px)}
+    .bar{pointer-events:auto;position:fixed;right:0;top:45%;display:flex;flex-direction:column;gap:6px;align-items:stretch;background:#fff;padding:4px 4px 6px 6px;border-radius:12px 0 0 12px;box-shadow:0 4px 20px rgba(0,0,0,.3);touch-action:none}
     button,select,input,textarea{font-size:16px}
-    .bar button{border:0;border-radius:9px;height:44px;min-width:44px;padding:0 14px;font-weight:700;cursor:pointer}
+    .bar button{border:0;border-radius:9px;width:52px;height:46px;padding:0;font-weight:700;cursor:pointer;line-height:1.05}.bar .fill{height:58px;font-size:13px}.bar .fill b{display:block;font-size:20px}.grip{height:20px;display:flex;align-items:center;justify-content:center;color:#999;font-size:14px;letter-spacing:2px;cursor:grab;user-select:none;-webkit-user-select:none}
     .fill{background:#6f42c1;color:#fff}.ico{background:#eee;color:#333}
-    .bar select{height:44px;border:1px solid #ccc;border-radius:9px;max-width:42vw;padding:0 6px;background:#fff;color:#222}
+    .bar select{width:52px;height:34px;border:1px solid #ccc;border-radius:9px;padding:0 2px;background:#fff;color:#222;font-size:11px}
     .toast{pointer-events:none;position:fixed;left:10px;right:10px;bottom:calc(76px + env(safe-area-inset-bottom));background:#1e7e34;color:#fff;padding:12px 14px;border-radius:10px;font-weight:600;font-size:15px;line-height:1.35;opacity:0;transform:translateY(10px);transition:.2s;box-shadow:0 4px 18px rgba(0,0,0,.3)}
     .toast.show{opacity:1;transform:none}.toast.warn{background:#c0392b}
     .sheet{pointer-events:auto;position:fixed;inset:0;background:#f4f5f7;color:#1d2330;overflow:auto;-webkit-overflow-scrolling:touch;display:none;padding-bottom:90px}
@@ -107,7 +107,7 @@
     .foot button{width:100%;height:48px;border:0;border-radius:10px;background:#6f42c1;color:#fff;font-weight:700;font-size:17px}
     .danger{color:#c0392b!important}.hint{font-size:13px;color:#667085;margin:4px 0 0}
   </style>
-  <div class="bar"><select class="sel" aria-label="Preset"></select><button class="fill">⚡ Fill</button><button class="ico cog" aria-label="Settings">⚙</button><button class="ico x" aria-label="Hide">✕</button></div>
+  <div class="bar"><div class="grip" aria-label="Drag to move">• • •</div><button class="fill"><b>⚡</b>Fill</button><select class="sel" aria-label="Preset"></select><button class="ico cog" aria-label="Settings">⚙</button><button class="ico x" aria-label="Hide">✕</button></div>
   <div class="toast"></div>
   <div class="sheet"><div class="top"><b>TMV defaults</b><button class="close">Done</button></div><div class="body"></div><div class="foot"><button class="save">Save</button></div></div>`;
   document.body.appendChild(host);
@@ -182,6 +182,19 @@
   $('.cog').addEventListener('click', openSheet);
   $('.x').addEventListener('click', () => { host.style.display = 'none'; });
   window.__tmvf = { toggle() { host.style.display = host.style.display === 'none' ? '' : 'none'; if (host.style.display === '') fill(); }, fill };
+  // ---------- drag the bar up/down; position is remembered ----------
+  (() => {
+    const g = root.querySelector('.grip'), PK = 'tmvf_bar_top';
+    const place = y => { const max = window.innerHeight - bar.offsetHeight - 8; y = Math.max(8, Math.min(max, y)); bar.style.top = y + 'px'; return y; };
+    try { const t = parseFloat(localStorage.getItem(PK)); if (!isNaN(t)) requestAnimationFrame(() => place(t)); } catch (e) {}
+    let startY = 0, startTop = 0, drag = false;
+    g.addEventListener('pointerdown', e => { drag = true; startY = e.clientY; startTop = bar.getBoundingClientRect().top; g.setPointerCapture(e.pointerId); e.preventDefault(); });
+    g.addEventListener('pointermove', e => { if (drag) place(startTop + e.clientY - startY); });
+    const end = () => { if (!drag) return; drag = false; try { localStorage.setItem(PK, String(bar.getBoundingClientRect().top)); } catch (e) {} };
+    g.addEventListener('pointerup', end); g.addEventListener('pointercancel', end);
+    window.addEventListener('resize', () => place(bar.getBoundingClientRect().top));
+  })();
+
   // ---------- container mode: reload Tradehack inside a same-site frame so the bar survives page changes ----------
   function startContainer() {
     const f = document.createElement('iframe');
