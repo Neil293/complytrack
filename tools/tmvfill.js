@@ -73,7 +73,7 @@
     if (v.result === 'auto') { const why = judge(f); bad = why.length > 0; setR(f, 'result', bad ? 'failed' : 'passed', false); msg += bad ? ' Result: FAILED (' + why.join('; ') + ').' : ' Result: PASSED.'; }
     else if (v.result) setR(f, 'result', v.result, S.onlyEmpty);
     if (S.highlight) msg += ' Check the yellow readings before Complete Test.';
-    toast(msg, bad);
+    if (bad) toast(msg, true); else toast('Done', false, 1000);
   }
 
   // ---------- UI (shadow DOM so Tradehack's styles don't clash) ----------
@@ -114,7 +114,7 @@
   const $ = q => root.querySelector(q);
   const sel = $('.sel'), bar = $('.bar'), sheet = $('.sheet'), body = $('.body'), tEl = $('.toast');
   let tH;
-  function toast(m, w) { tEl.textContent = m; tEl.className = 'toast show' + (w ? ' warn' : ''); clearTimeout(tH); tH = setTimeout(() => tEl.className = 'toast', 6000); }
+  function toast(m, w, ms) { tEl.textContent = m; tEl.className = 'toast show' + (w ? ' warn' : ''); clearTimeout(tH); tH = setTimeout(() => tEl.className = 'toast', ms || 6000); }
   function fillSel() {
     sel.innerHTML = S.presets.map(p => '<option value="' + esc(p.id) + '"' + (p.id === S.activePreset ? ' selected' : '') + '>' + esc(p.name) + '</option>').join('');
     sel.style.display = S.presets.length > 1 ? '' : 'none';
