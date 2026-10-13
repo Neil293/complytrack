@@ -106,11 +106,12 @@
   // a stable name for a valve that survives a page reload: its Test link, or its details minus the status
   function valveKey(btn) {
     const h = (btn.getAttribute('href') || '').trim();
-    if (h && h !== '#' && !/^javascript:/i.test(h)) return 'h:' + h.replace(/([?&])(auto_popup|noq)=1/g, '$1');
+    // just the page path: the query string carries a test id that changes once the valve is tested
+    if (h && h !== '#' && !/^javascript:/i.test(h)) { try { return 'h:' + new URL(h, btn.ownerDocument.baseURI).pathname; } catch (e) { return 'h:' + h.split('?')[0]; } }
     let c = btn; for (let k = 0; k < 8 && c.parentElement && !/^(TABLE|BODY)$/.test(c.tagName); k++) c = c.parentElement;
     return 't:' + c.textContent.replace(/not yet tested|tested|passed|pass|failed|fail|test/gi, '').replace(/\s+/g, ' ').trim();
   }
-  let currentKey = null; // the valve whose Test was last opened
+  let currentKey = null, currentIdx = -1; // the valve whose Test was last opened, and its place in the list
   function nextUntested(fromKey) {
     const d = curDoc();
     if (!d) return false;
@@ -119,10 +120,11 @@
     const header = [...d.querySelectorAll('nav,.navbar,header')].filter(n => getComputedStyle(n).position === 'fixed' || getComputedStyle(n).position === 'sticky').reduce((m, n) => Math.max(m, n.getBoundingClientRect().bottom), 0);
     const line = header + 24;
     let i = -1;
-    if (fromKey) {
+    if (fromKey || currentIdx >= 0) {
       // carry on from the valve just tested, in list order
       const all = [...d.querySelectorAll('a,button')].filter(x => isTestBtn(x) && x.offsetParent !== null && !x.closest('.modal'));
-      const ref = all.findIndex(x => valveKey(x) === fromKey);
+      let ref = all.findIndex(x => valveKey(x) === fromKey);
+      if (ref < 0 && currentIdx >= 0 && currentIdx < all.length) ref = currentIdx; // fall back to its place in the list
       if (ref >= 0) {
         const pos = badges.map(b => all.indexOf(testBtnOf(cardOf(b))));
         if (!back) { i = pos.findIndex(p => p > ref); if (i < 0) i = 0; }
@@ -190,7 +192,7 @@
     if (!d || d.__tmvfWatched) return;
     d.__tmvfWatched = true;
     // remember which valve's Test you opened, so auto-jump carries on from there
-    d.addEventListener('click', e => { const b = e.target.closest && e.target.closest('a,button'); if (b && isTestBtn(b) && !b.closest('.modal')) currentKey = valveKey(b); }, true);
+    d.addEventListener('click', e => { const b = e.target.closest && e.target.closest('a,button'); if (b && isTestBtn(b) && !b.closest('.modal')) { currentKey = valveKey(b); currentIdx = [...d.querySelectorAll('a,button')].filter(x => isTestBtn(x) && x.offsetParent !== null && !x.closest('.modal')).indexOf(b); } }, true);
     d.addEventListener('click', e => {
       if (S.autoNext === false || !(e.target.closest && e.target.closest('._doSave_complete_btn'))) return;
       const t0 = pending = Date.now();
