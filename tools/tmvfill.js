@@ -11,7 +11,7 @@
     ['Sign-off', [['result','Test result','r',[['auto','Auto (from limits)'],...PF]],['valve_tested_by','Valve tested by','t'],['plumbers_licence_number','Licence number','t'],['comments','Comments','a']]],
   ];
   const FIELDS = GROUPS.flatMap(g => g[1]);
-  const DEF = { activePreset: 'standard', onlyEmpty: false, dateToday: true, highlight: true, container: true, autoNext: true, autoOpen: false, openValveId: true, maxMixed: 45, maxSpike: 46,
+  const DEF = { activePreset: 'standard', onlyEmpty: false, dateToday: true, highlight: true, container: true, autoNext: true, autoOpen: false, reverse: false, openValveId: true, maxMixed: 45, maxSpike: 46,
     presets: [{ id: 'standard', name: 'Standard service – 42.5°C', values: {
       strainer:'checked', non_return_valves:'checked', o_rings_and_seals:'checked', thermostatic_element:'checked', replacement_valve:'no',
       temperature_set_at:'42.5', hot_water_temp:'65', cold_water_temp:'18', mixed_water_temp:'42.5', mixed_min_flow:'42.5', mixed_max_flow:'43', spike_test:'44',
@@ -94,29 +94,63 @@
     }
     return badges;
   }
-  function nextUntested() {
+  const isTestBtn = x => /^\s*test\s*$/i.test(x.textContent);
+  const testBtnOf = card => card && [...card.querySelectorAll('a,button')].find(isTestBtn);
+  // the valve's box: first ancestor that also contains its Test button
+  const many = e => (e.textContent.match(/not yet tested/gi) || []).length > 1;
+  function cardOf(b) {
+    const d = b.ownerDocument; let e = b;
+    while (e && e !== d.body && !many(e)) { if ([...e.querySelectorAll('a,button')].some(isTestBtn)) { const t = e.closest('table'); return t && !many(t) ? t : e; } e = e.parentElement; }
+    const t = b.closest('table,.panel,.card'); return t && !many(t) ? t : b.parentElement;
+  }
+  // a stable name for a valve that survives a page reload: its Test link, or its details minus the status
+  function valveKey(btn) {
+    const h = (btn.getAttribute('href') || '').trim();
+    if (h && h !== '#' && !/^javascript:/i.test(h)) return 'h:' + h.replace(/([?&])(auto_popup|noq)=1/g, '$1');
+    let c = btn; for (let k = 0; k < 8 && c.parentElement && !/^(TABLE|BODY)$/.test(c.tagName); k++) c = c.parentElement;
+    return 't:' + c.textContent.replace(/not yet tested|tested|passed|pass|failed|fail|test/gi, '').replace(/\s+/g, ' ').trim();
+  }
+  let currentKey = null; // the valve whose Test was last opened
+  function nextUntested(fromKey) {
     const d = curDoc();
     if (!d) return false;
-    const win = d.defaultView, badges = findBadges(d);
+    const win = d.defaultView, badges = findBadges(d), back = !!S.reverse;
     if (!badges.length) return toast('No valves left marked Not Yet Tested ✓', false, 2000);
-    // the valve's box: first ancestor that also contains its Test button
-    const many = e => (e.textContent.match(/not yet tested/gi) || []).length > 1;
-    const cardOf = b => { let e = b; while (e && e !== d.body && !many(e)) { if ([...e.querySelectorAll('a,button')].some(x => /^\s*test\s*$/i.test(x.textContent))) { const t = e.closest('table'); return t && !many(t) ? t : e; } e = e.parentElement; } const t = b.closest('table,.panel,.card'); return t && !many(t) ? t : b.parentElement; };
     const header = [...d.querySelectorAll('nav,.navbar,header')].filter(n => getComputedStyle(n).position === 'fixed' || getComputedStyle(n).position === 'sticky').reduce((m, n) => Math.max(m, n.getBoundingClientRect().bottom), 0);
     const line = header + 24;
-    let i = badges.findIndex(b => b.getBoundingClientRect().top > line + 4);
-    if (i >= 0 && badges[i] === lastBadge) i++; // couldn't scroll any further last time
-    if (i < 0 || i >= badges.length) i = 0; // wrap back to the first
+    let i = -1;
+    if (fromKey) {
+      // carry on from the valve just tested, in list order
+      const all = [...d.querySelectorAll('a,button')].filter(x => isTestBtn(x) && x.offsetParent !== null && !x.closest('.modal'));
+      const ref = all.findIndex(x => valveKey(x) === fromKey);
+      if (ref >= 0) {
+        const pos = badges.map(b => all.indexOf(testBtnOf(cardOf(b))));
+        if (!back) { i = pos.findIndex(p => p > ref); if (i < 0) i = 0; }
+        else { for (let k = pos.length - 1; k >= 0; k--) if (pos[k] >= 0 && pos[k] < ref) { i = k; break; } if (i < 0) i = badges.length - 1; }
+      }
+    }
+    if (i < 0) {
+      // from where you are on screen
+      if (!back) {
+        i = badges.findIndex(b => b.getBoundingClientRect().top > line + 4);
+        if (i >= 0 && badges[i] === lastBadge) i++; // couldn't scroll any further last time
+        if (i < 0 || i >= badges.length) i = 0;
+      } else {
+        for (let k = badges.length - 1; k >= 0; k--) if (badges[k].getBoundingClientRect().top < line - 4) { i = k; break; }
+        if (i >= 0 && badges[i] === lastBadge) i--; // couldn't scroll any further last time
+        if (i < 0) i = badges.length - 1;
+      }
+    }
     lastBadge = badges[i];
     const card = cardOf(badges[i]);
     if (lastCard && lastCard.isConnected) { lastCard.style.outline = ''; lastCard.style.outlineOffset = ''; }
     card.style.outline = '4px solid #6f42c1'; card.style.outlineOffset = '2px'; lastCard = card;
     win.scrollTo({ top: win.scrollY + badges[i].getBoundingClientRect().top - line + 4, behavior: 'smooth' });
-    toast((i + 1) + ' of ' + badges.length + ' not yet tested', false, 1200);
+    toast((back ? '↑ ' : '') + (i + 1) + ' of ' + badges.length + ' not yet tested', false, 1200);
     return true;
   }
   function openTest() {
-    const b = lastCard && lastCard.isConnected && [...lastCard.querySelectorAll('a,button')].find(x => /^\s*test\s*$/i.test(x.textContent));
+    const b = lastCard && lastCard.isConnected && testBtnOf(lastCard);
     if (b) b.click();
   }
 
@@ -144,7 +178,7 @@
   function autoJump(tries) {
     tries = tries || 0;
     if (!findBadges(curDoc()).length && tries < 5) return setTimeout(() => autoJump(tries + 1), 800); // list may still be loading
-    if (nextUntested() && S.autoOpen) setTimeout(openTest, 900);
+    if (nextUntested(currentKey) && S.autoOpen) setTimeout(openTest, 900);
   }
   function afterComplete(d) {
     pending = 0;
@@ -155,6 +189,8 @@
   function watchDoc(d) {
     if (!d || d.__tmvfWatched) return;
     d.__tmvfWatched = true;
+    // remember which valve's Test you opened, so auto-jump carries on from there
+    d.addEventListener('click', e => { const b = e.target.closest && e.target.closest('a,button'); if (b && isTestBtn(b) && !b.closest('.modal')) currentKey = valveKey(b); }, true);
     d.addEventListener('click', e => {
       if (S.autoNext === false || !(e.target.closest && e.target.closest('._doSave_complete_btn'))) return;
       const t0 = pending = Date.now();
@@ -218,6 +254,7 @@
   let tH;
   function toast(m, w, ms) { tEl.textContent = m; tEl.className = 'toast show' + (w ? ' warn' : ''); clearTimeout(tH); tH = setTimeout(() => tEl.className = 'toast', ms || 6000); }
   function fillSel() {
+    const nb = root.querySelector('.next b'); if (nb) nb.textContent = S.reverse ? '↑' : '↓';
     sel.innerHTML = S.presets.map(p => '<option value="' + esc(p.id) + '"' + (p.id === S.activePreset ? ' selected' : '') + '>' + esc(p.name) + '</option>').join('');
     sel.style.display = S.presets.length > 1 ? '' : 'none';
   }
@@ -250,6 +287,7 @@
       + '<label class="chk"><input type="checkbox" data-k="openValveId"' + (S.openValveId !== false ? ' checked' : '') + '> Open Valve Identification when the test popup opens</label>'
       + '<label class="chk"><input type="checkbox" data-k="autoNext"' + (S.autoNext !== false ? ' checked' : '') + '> After Complete Test, jump to the next Not Yet Tested valve</label>'
       + '<label class="chk"><input type="checkbox" data-k="autoOpen"' + (S.autoOpen ? ' checked' : '') + '> …and open its Test popup</label>'
+      + '<label class="chk"><input type="checkbox" data-k="reverse"' + (S.reverse ? ' checked' : '') + '> Work backwards (bottom of the list to the top)</label>'
       + '<label class="chk"><input type="checkbox" data-k="container"' + (S.container !== false ? ' checked' : '') + '> Keep the bar between pages (container mode)</label>'
       + '<label class="chk"><input type="checkbox" data-k="highlight"' + (S.highlight ? ' checked' : '') + '> Highlight filled readings in yellow</label></div>'
       + '<div class="card"><h3>Backup / copy between devices</h3><div class="row"><button data-a="exp">Copy settings</button><button data-a="imp">Paste settings</button><button data-a="reset" class="danger">Reset</button></div>'
@@ -263,7 +301,7 @@
     if (q('def').checked) S.activePreset = cur.id;
     S.maxMixed = parseFloat(q('maxMixed').value) || 45;
     S.maxSpike = parseFloat(q('maxSpike').value) || 46;
-    ['dateToday', 'onlyEmpty', 'highlight', 'container', 'autoNext', 'autoOpen', 'openValveId'].forEach(k => S[k] = q(k).checked);
+    ['dateToday', 'onlyEmpty', 'highlight', 'container', 'autoNext', 'autoOpen', 'reverse', 'openValveId'].forEach(k => S[k] = q(k).checked);
   }
   const uid = () => 'p' + Date.now().toString(36);
   function openSheet() { S = load(); cur = S.presets.find(p => p.id === (sel.value || S.activePreset)) || S.presets[0]; renderSheet(); sheet.classList.add('open'); bar.style.display = 'none'; }
