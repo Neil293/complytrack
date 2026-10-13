@@ -11,7 +11,7 @@
     ['Sign-off', [['result','Test result','r',[['auto','Auto (from limits)'],...PF]],['valve_tested_by','Valve tested by','t'],['plumbers_licence_number','Licence number','t'],['comments','Comments','a']]],
   ];
   const FIELDS = GROUPS.flatMap(g => g[1]);
-  const DEF = { activePreset: 'standard', onlyEmpty: false, dateToday: true, highlight: true, container: true, autoNext: true, autoOpen: false, reverse: false, openValveId: true, maxMixed: 45, maxSpike: 46,
+  const DEF = { activePreset: 'standard', onlyEmpty: false, dateToday: true, highlight: true, container: true, autoNext: true, autoOpen: false, reverse: false, testMode: false, testMin: 41.5, testMax: 43, openValveId: true, maxMixed: 45, maxSpike: 46,
     presets: [{ id: 'standard', name: 'Standard service – 42.5°C', values: {
       strainer:'checked', non_return_valves:'checked', o_rings_and_seals:'checked', thermostatic_element:'checked', replacement_valve:'no',
       temperature_set_at:'42.5', hot_water_temp:'65', cold_water_temp:'18', mixed_water_temp:'42.5', mixed_min_flow:'42.5', mixed_max_flow:'43', spike_test:'44',
@@ -69,11 +69,20 @@
       else { const el = setI(f, n, val, S.onlyEmpty); if (el) { c++; if (S.highlight && t === 'n') { el.classList.add('tmvf-check'); el.style.background = '#fff7cc'; el.style.boxShadow = 'inset 0 0 0 2px #f0b400'; } } }
     });
     if (S.dateToday && setI(f, 'date_of_test', today(), false)) c++;
+    if (S.testMode) {
+      // TEST MODE ONLY: random readings for trying the tool out. Complete Test is blocked while this is on.
+      const lo = +S.testMin || 41.5, hi = Math.max(+S.testMax || 43, lo), r1 = x => (Math.round(x * 10) / 10).toFixed(1);
+      const rnd = () => lo + Math.random() * (hi - lo);
+      const mixed = +r1(rnd());
+      setI(f, 'mixed_water_temp', r1(mixed), false); setI(f, 'mixed_min_flow', r1(rnd()), false); setI(f, 'mixed_max_flow', r1(rnd()), false);
+      setI(f, 'spike_test', r1(mixed + 0.1 + Math.random() * 0.9), false);
+      markTest(f);
+    }
     let msg = 'Filled ' + c + ' fields from “' + p.name + '”.', bad = false;
     if (v.result === 'auto') { const why = judge(f); bad = why.length > 0; setR(f, 'result', bad ? 'failed' : 'passed', false); msg += bad ? ' Result: FAILED (' + why.join('; ') + ').' : ' Result: PASSED.'; }
     else if (v.result) setR(f, 'result', v.result, S.onlyEmpty);
     if (S.highlight) msg += ' Check the yellow readings before Complete Test.';
-    if (bad) toast(msg, true); else toast('Done', false, 1000);
+    if (bad) toast(msg, true); else toast(S.testMode ? 'Done (TEST MODE: random readings, Complete Test blocked)' : 'Done', false, S.testMode ? 2500 : 1000);
     // bring the Complete Test button into view (the popup scrolls inside itself, so scroll to the button rather than the window)
     const done = (f.closest('.modal') || f.ownerDocument).querySelector('._doSave_complete_btn') || [...f.ownerDocument.querySelectorAll('button')].filter(x => x.offsetParent !== null).pop();
     if (done) setTimeout(() => done.scrollIntoView({ behavior: 'smooth', block: 'end' }), 150);
@@ -164,7 +173,21 @@
     c.classList.add('in'); c.style.height = ''; c.setAttribute('aria-expanded', 'true');
     f.ownerDocument.querySelectorAll('[href$="#' + c.id + '"],[data-target="#' + c.id + '"]').forEach(a => { a.classList.remove('collapsed'); a.setAttribute('aria-expanded', 'true'); });
   }
+  // ---------- test mode lock: banner on the form, Complete Test blocked ----------
+  function markTest(f) {
+    const d = f.ownerDocument, scope = f.closest('.modal') || f;
+    let ban = scope.querySelector('.tmvf-testban');
+    const btns = scope.querySelectorAll('._doSave_complete_btn');
+    if (S.testMode) {
+      if (!ban) { ban = d.createElement('div'); ban.className = 'tmvf-testban'; ban.textContent = 'TEST MODE: readings are random. Complete Test is blocked; use Save As Draft or turn test mode off in ⚙.'; ban.style.cssText = 'background:#c0392b;color:#fff;font-weight:700;padding:10px 12px;border-radius:6px;margin:8px 0;font-size:14px;line-height:1.35'; f.insertBefore(ban, f.firstChild); }
+      btns.forEach(b => { b.style.opacity = '.35'; b.style.textDecoration = 'line-through'; });
+    } else {
+      if (ban) ban.remove();
+      btns.forEach(b => { b.style.opacity = ''; b.style.textDecoration = ''; });
+    }
+  }
   setInterval(() => {
+    const dd = curDoc(); if (dd) dd.querySelectorAll('form.tmv_form').forEach(markTest);
     if (S.openValveId === false) return;
     const d = curDoc(); if (!d) return;
     d.querySelectorAll('form.tmv_form').forEach(f => {
@@ -191,6 +214,12 @@
   function watchDoc(d) {
     if (!d || d.__tmvfWatched) return;
     d.__tmvfWatched = true;
+    // test mode: stop Complete Test before Tradehack sees the tap
+    d.addEventListener('click', e => {
+      if (!S.testMode || !(e.target.closest && e.target.closest('._doSave_complete_btn'))) return;
+      e.preventDefault(); e.stopImmediatePropagation();
+      toast('Test mode is on, so Complete Test is blocked. Use Save As Draft, or turn test mode off in ⚙.', true, 4000);
+    }, true);
     // remember which valve's Test you opened, so auto-jump carries on from there
     d.addEventListener('click', e => { const b = e.target.closest && e.target.closest('a,button'); if (b && isTestBtn(b) && !b.closest('.modal')) { currentKey = valveKey(b); currentIdx = [...d.querySelectorAll('a,button')].filter(x => isTestBtn(x) && x.offsetParent !== null && !x.closest('.modal')).indexOf(b); } }, true);
     d.addEventListener('click', e => {
@@ -257,6 +286,7 @@
   function toast(m, w, ms) { tEl.textContent = m; tEl.className = 'toast show' + (w ? ' warn' : ''); clearTimeout(tH); tH = setTimeout(() => tEl.className = 'toast', ms || 6000); }
   function fillSel() {
     const nb = root.querySelector('.next b'); if (nb) nb.textContent = S.reverse ? '↑' : '↓';
+    const fb = root.querySelector('.fill'); if (fb) { fb.style.background = S.testMode ? '#c0392b' : ''; fb.innerHTML = S.testMode ? '<b>⚡</b>TEST' : '<b>⚡</b>Fill'; }
     sel.innerHTML = S.presets.map(p => '<option value="' + esc(p.id) + '"' + (p.id === S.activePreset ? ' selected' : '') + '>' + esc(p.name) + '</option>').join('');
     sel.style.display = S.presets.length > 1 ? '' : 'none';
   }
@@ -283,6 +313,10 @@
       + '<label>Max mixed °C<input data-k="maxMixed" inputmode="decimal" value="' + S.maxMixed + '"></label>'
       + '<label>Max spike °C<input data-k="maxSpike" inputmode="decimal" value="' + S.maxSpike + '"></label></div>'
       + '<p class="hint">Auto fails if any mixed reading is over the mixed limit, the spike is over the spike limit, or an isolation test failed.</p></div>'
+      + '<div class="card"><h3>Test mode (practice only)</h3>'
+      + '<label class="chk"><input type="checkbox" data-k="testMode"' + (S.testMode ? ' checked' : '') + '> Test mode: random mixed, min/max flow and spike readings</label>'
+      + '<div class="two"><label>Random from °C<input data-k="testMin" inputmode="decimal" value="' + (S.testMin ?? 41.5) + '"></label><label>Random to °C<input data-k="testMax" inputmode="decimal" value="' + (S.testMax ?? 43) + '"></label></div>'
+      + '<p class="hint">Spike is mixed plus up to 1 °C. While test mode is on, Complete Test is blocked so random readings can\'t be submitted as a real test.</p></div>'
       + '<div class="card"><h3>Behaviour</h3>'
       + '<label class="chk"><input type="checkbox" data-k="dateToday"' + (S.dateToday ? ' checked' : '') + '> Set Date of Test to today</label>'
       + '<label class="chk"><input type="checkbox" data-k="onlyEmpty"' + (S.onlyEmpty ? ' checked' : '') + '> Only fill empty fields</label>'
@@ -303,7 +337,9 @@
     if (q('def').checked) S.activePreset = cur.id;
     S.maxMixed = parseFloat(q('maxMixed').value) || 45;
     S.maxSpike = parseFloat(q('maxSpike').value) || 46;
-    ['dateToday', 'onlyEmpty', 'highlight', 'container', 'autoNext', 'autoOpen', 'reverse', 'openValveId'].forEach(k => S[k] = q(k).checked);
+    S.testMin = parseFloat(q('testMin').value) || 41.5;
+    S.testMax = parseFloat(q('testMax').value) || 43;
+    ['dateToday', 'onlyEmpty', 'highlight', 'container', 'autoNext', 'autoOpen', 'reverse', 'openValveId', 'testMode'].forEach(k => S[k] = q(k).checked);
   }
   const uid = () => 'p' + Date.now().toString(36);
   function openSheet() { S = load(); cur = S.presets.find(p => p.id === (sel.value || S.activePreset)) || S.presets[0]; renderSheet(); sheet.classList.add('open'); bar.style.display = 'none'; }
