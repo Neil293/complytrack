@@ -76,6 +76,35 @@
     if (bad) toast(msg, true); else toast('Done', false, 1000);
   }
 
+  // ---------- jump to the next valve that is "Not Yet Tested" ----------
+  let lastCard = null, lastBadge = null;
+  function nextUntested() {
+    const d = frame ? frame.contentDocument : document, win = d.defaultView;
+    if (!d) return;
+    const badges = [], tw = d.createTreeWalker(d.body, NodeFilter.SHOW_TEXT);
+    while (tw.nextNode()) {
+      if (/^\s*not yet tested\s*$/i.test(tw.currentNode.nodeValue)) {
+        const el = tw.currentNode.parentElement;
+        if (el && el.offsetParent !== null && !el.closest('.modal')) badges.push(el);
+      }
+    }
+    if (!badges.length) return toast('No valves left marked Not Yet Tested ✓', false, 2000);
+    // the valve's box: first ancestor that also contains its Test button
+    const many = e => (e.textContent.match(/not yet tested/gi) || []).length > 1;
+    const cardOf = b => { let e = b; while (e && e !== d.body && !many(e)) { if ([...e.querySelectorAll('a,button')].some(x => /^\s*test\s*$/i.test(x.textContent))) { const t = e.closest('table'); return t && !many(t) ? t : e; } e = e.parentElement; } const t = b.closest('table,.panel,.card'); return t && !many(t) ? t : b.parentElement; };
+    const header = [...d.querySelectorAll('nav,.navbar,header')].filter(n => getComputedStyle(n).position === 'fixed' || getComputedStyle(n).position === 'sticky').reduce((m, n) => Math.max(m, n.getBoundingClientRect().bottom), 0);
+    const line = header + 24;
+    let i = badges.findIndex(b => b.getBoundingClientRect().top > line + 4);
+    if (i >= 0 && badges[i] === lastBadge) i++; // couldn't scroll any further last time
+    if (i < 0 || i >= badges.length) i = 0; // wrap back to the first
+    lastBadge = badges[i];
+    const card = cardOf(badges[i]);
+    if (lastCard && lastCard.isConnected) { lastCard.style.outline = ''; lastCard.style.outlineOffset = ''; }
+    card.style.outline = '4px solid #6f42c1'; card.style.outlineOffset = '2px'; lastCard = card;
+    win.scrollTo({ top: win.scrollY + badges[i].getBoundingClientRect().top - line + 4, behavior: 'smooth' });
+    toast((i + 1) + ' of ' + badges.length + ' not yet tested', false, 1200);
+  }
+
   // ---------- UI (shadow DOM so Tradehack's styles don't clash) ----------
   const host = document.createElement('div');
   host.style.cssText = 'position:fixed;inset:auto 0 0 0;z-index:2147483647;pointer-events:none';
@@ -86,7 +115,7 @@
     *{box-sizing:border-box;font-family:system-ui,-apple-system,Roboto,Arial,sans-serif}
     .bar{pointer-events:auto;position:fixed;right:0;top:45%;display:flex;flex-direction:column;gap:6px;align-items:stretch;background:#fff;padding:4px 4px 6px 6px;border-radius:12px 0 0 12px;box-shadow:0 4px 20px rgba(0,0,0,.3);touch-action:none}
     button,select,input,textarea{font-size:16px}
-    .bar button{border:0;border-radius:9px;width:52px;height:46px;padding:0;font-weight:700;cursor:pointer;line-height:1.05}.bar .fill{height:58px;font-size:13px}.bar .fill b{display:block;font-size:20px}.grip{height:20px;display:flex;align-items:center;justify-content:center;color:#999;font-size:14px;letter-spacing:2px;cursor:grab;user-select:none;-webkit-user-select:none}
+    .bar button{border:0;border-radius:9px;width:52px;height:46px;padding:0;font-weight:700;cursor:pointer;line-height:1.05}.bar .next{height:52px;font-size:13px;background:#f36f21;color:#fff}.bar .next b{display:block;font-size:18px}.bar .fill{height:58px;font-size:13px}.bar .fill b{display:block;font-size:20px}.grip{height:20px;display:flex;align-items:center;justify-content:center;color:#999;font-size:14px;letter-spacing:2px;cursor:grab;user-select:none;-webkit-user-select:none}
     .fill{background:#6f42c1;color:#fff}.ico{background:#eee;color:#333}
     .bar select{width:52px;height:34px;border:1px solid #ccc;border-radius:9px;padding:0 2px;background:#fff;color:#222;font-size:11px}
     .toast{pointer-events:none;position:fixed;left:10px;right:10px;bottom:calc(76px + env(safe-area-inset-bottom));background:#1e7e34;color:#fff;padding:12px 14px;border-radius:10px;font-weight:600;font-size:15px;line-height:1.35;opacity:0;transform:translateY(10px);transition:.2s;box-shadow:0 4px 18px rgba(0,0,0,.3)}
@@ -107,7 +136,7 @@
     .foot button{width:100%;height:48px;border:0;border-radius:10px;background:#6f42c1;color:#fff;font-weight:700;font-size:17px}
     .danger{color:#c0392b!important}.hint{font-size:13px;color:#667085;margin:4px 0 0}
   </style>
-  <div class="bar"><div class="grip" aria-label="Drag to move">• • •</div><button class="fill"><b>⚡</b>Fill</button><select class="sel" aria-label="Preset"></select><button class="ico cog" aria-label="Settings">⚙</button><button class="ico x" aria-label="Hide">✕</button></div>
+  <div class="bar"><div class="grip" aria-label="Drag to move">• • •</div><button class="fill"><b>⚡</b>Fill</button><button class="next"><b>↓</b>Next</button><select class="sel" aria-label="Preset"></select><button class="ico cog" aria-label="Settings">⚙</button><button class="ico x" aria-label="Hide">✕</button></div>
   <div class="toast"></div>
   <div class="sheet"><div class="top"><b>TMV defaults</b><button class="close">Done</button></div><div class="body"></div><div class="foot"><button class="save">Save</button></div></div>`;
   document.body.appendChild(host);
@@ -179,6 +208,7 @@
   $('.save').addEventListener('click', () => { readSheet(); if (save(S)) { fillSel(); closeSheet(); toast('Saved ✓'); } else toast('Couldn\'t save — is this a private tab?', true); });
   $('.close').addEventListener('click', closeSheet);
   $('.fill').addEventListener('click', fill);
+  $('.next').addEventListener('click', nextUntested);
   $('.cog').addEventListener('click', openSheet);
   $('.x').addEventListener('click', () => { host.style.display = 'none'; });
   window.__tmvf = { toggle() { host.style.display = host.style.display === 'none' ? '' : 'none'; if (host.style.display === '') fill(); }, fill };
