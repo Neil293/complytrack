@@ -74,6 +74,9 @@
     else if (v.result) setR(f, 'result', v.result, S.onlyEmpty);
     if (S.highlight) msg += ' Check the yellow readings before Complete Test.';
     if (bad) toast(msg, true); else toast('Done', false, 1000);
+    // bring the Complete Test button into view (the popup scrolls inside itself, so scroll to the button rather than the window)
+    const done = (f.closest('.modal') || f.ownerDocument).querySelector('._doSave_complete_btn') || [...f.ownerDocument.querySelectorAll('button')].filter(x => x.offsetParent !== null).pop();
+    if (done) setTimeout(() => done.scrollIntoView({ behavior: 'smooth', block: 'end' }), 150);
   }
 
   // ---------- jump to the next valve that is "Not Yet Tested" ----------
