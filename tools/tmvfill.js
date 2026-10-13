@@ -11,7 +11,7 @@
     ['Sign-off', [['result','Test result','r',[['auto','Auto (from limits)'],...PF]],['valve_tested_by','Valve tested by','t'],['plumbers_licence_number','Licence number','t'],['comments','Comments','a']]],
   ];
   const FIELDS = GROUPS.flatMap(g => g[1]);
-  const DEF = { activePreset: 'standard', onlyEmpty: false, dateToday: true, highlight: true, container: true, maxMixed: 45, maxSpike: 46,
+  const DEF = { activePreset: 'standard', onlyEmpty: false, dateToday: true, highlight: true, container: true, autoNext: true, autoOpen: false, maxMixed: 45, maxSpike: 46,
     presets: [{ id: 'standard', name: 'Standard service – 42.5°C', values: {
       strainer:'checked', non_return_valves:'checked', o_rings_and_seals:'checked', thermostatic_element:'checked', replacement_valve:'no',
       temperature_set_at:'42.5', hot_water_temp:'65', cold_water_temp:'18', mixed_water_temp:'42.5', mixed_min_flow:'42.5', mixed_max_flow:'43', spike_test:'44',
@@ -78,16 +78,23 @@
 
   // ---------- jump to the next valve that is "Not Yet Tested" ----------
   let lastCard = null, lastBadge = null;
-  function nextUntested() {
-    const d = frame ? frame.contentDocument : document, win = d.defaultView;
-    if (!d) return;
-    const badges = [], tw = d.createTreeWalker(d.body, NodeFilter.SHOW_TEXT);
+  const curDoc = () => { try { return frame ? frame.contentDocument : document; } catch (e) { return null; } };
+  function findBadges(d) {
+    const badges = [];
+    if (!d || !d.body) return badges;
+    const tw = d.createTreeWalker(d.body, NodeFilter.SHOW_TEXT);
     while (tw.nextNode()) {
       if (/^\s*not yet tested\s*$/i.test(tw.currentNode.nodeValue)) {
         const el = tw.currentNode.parentElement;
         if (el && el.offsetParent !== null && !el.closest('.modal')) badges.push(el);
       }
     }
+    return badges;
+  }
+  function nextUntested() {
+    const d = curDoc();
+    if (!d) return false;
+    const win = d.defaultView, badges = findBadges(d);
     if (!badges.length) return toast('No valves left marked Not Yet Tested ✓', false, 2000);
     // the valve's box: first ancestor that also contains its Test button
     const many = e => (e.textContent.match(/not yet tested/gi) || []).length > 1;
@@ -103,6 +110,51 @@
     card.style.outline = '4px solid #6f42c1'; card.style.outlineOffset = '2px'; lastCard = card;
     win.scrollTo({ top: win.scrollY + badges[i].getBoundingClientRect().top - line + 4, behavior: 'smooth' });
     toast((i + 1) + ' of ' + badges.length + ' not yet tested', false, 1200);
+    return true;
+  }
+  function openTest() {
+    const b = lastCard && lastCard.isConnected && [...lastCard.querySelectorAll('a,button')].find(x => /^\s*test\s*$/i.test(x.textContent));
+    if (b) b.click();
+  }
+
+  // ---------- after Complete Test: jump to the next valve automatically ----------
+  let pending = 0, goingBack = false, scheduleUrl = null;
+  const isSched = href => { try { return /\/schedule/i.test(new URL(href).pathname); } catch (e) { return false; } };
+  function autoJump(tries) {
+    tries = tries || 0;
+    if (!findBadges(curDoc()).length && tries < 5) return setTimeout(() => autoJump(tries + 1), 800); // list may still be loading
+    if (nextUntested() && S.autoOpen) setTimeout(openTest, 900);
+  }
+  function afterComplete(d) {
+    pending = 0;
+    let href = ''; try { href = d.defaultView.location.href; } catch (e) {}
+    if (isSched(href)) setTimeout(autoJump, 700);
+    else if (frame && scheduleUrl) { goingBack = true; frame.contentWindow.location.href = scheduleUrl; }
+  }
+  function watchDoc(d) {
+    if (!d || d.__tmvfWatched) return;
+    d.__tmvfWatched = true;
+    d.addEventListener('click', e => {
+      if (S.autoNext === false || !(e.target.closest && e.target.closest('._doSave_complete_btn'))) return;
+      const t0 = pending = Date.now();
+      const iv = setInterval(() => {
+        if (pending !== t0) return clearInterval(iv);          // superseded, or a page load took over
+        if (Date.now() - t0 > 30000) { pending = 0; return clearInterval(iv); } // popup never closed (e.g. a required field was missing)
+        if (curDoc() !== d) return clearInterval(iv);          // page changed; the frame load handler carries on
+        const f = d.querySelector('form.tmv_form');
+        if (!f || f.offsetParent === null) { clearInterval(iv); afterComplete(d); }
+      }, 400);
+    }, true);
+  }
+  function onPageLoad(d, href) {
+    watchDoc(d);
+    if (isSched(href)) scheduleUrl = href;
+    if (pending || goingBack) {
+      const wasPending = pending; pending = 0;
+      if (isSched(href)) { goingBack = false; setTimeout(autoJump, 900); }
+      else if (wasPending && scheduleUrl) { goingBack = true; frame.contentWindow.location.href = scheduleUrl; }
+      else goingBack = false;
+    }
   }
 
   // ---------- UI (shadow DOM so Tradehack's styles don't clash) ----------
@@ -174,6 +226,8 @@
       + '<div class="card"><h3>Behaviour</h3>'
       + '<label class="chk"><input type="checkbox" data-k="dateToday"' + (S.dateToday ? ' checked' : '') + '> Set Date of Test to today</label>'
       + '<label class="chk"><input type="checkbox" data-k="onlyEmpty"' + (S.onlyEmpty ? ' checked' : '') + '> Only fill empty fields</label>'
+      + '<label class="chk"><input type="checkbox" data-k="autoNext"' + (S.autoNext !== false ? ' checked' : '') + '> After Complete Test, jump to the next Not Yet Tested valve</label>'
+      + '<label class="chk"><input type="checkbox" data-k="autoOpen"' + (S.autoOpen ? ' checked' : '') + '> …and open its Test popup</label>'
       + '<label class="chk"><input type="checkbox" data-k="container"' + (S.container !== false ? ' checked' : '') + '> Keep the bar between pages (container mode)</label>'
       + '<label class="chk"><input type="checkbox" data-k="highlight"' + (S.highlight ? ' checked' : '') + '> Highlight filled readings in yellow</label></div>'
       + '<div class="card"><h3>Backup / copy between devices</h3><div class="row"><button data-a="exp">Copy settings</button><button data-a="imp">Paste settings</button><button data-a="reset" class="danger">Reset</button></div>'
@@ -187,7 +241,7 @@
     if (q('def').checked) S.activePreset = cur.id;
     S.maxMixed = parseFloat(q('maxMixed').value) || 45;
     S.maxSpike = parseFloat(q('maxSpike').value) || 46;
-    ['dateToday', 'onlyEmpty', 'highlight', 'container'].forEach(k => S[k] = q(k).checked);
+    ['dateToday', 'onlyEmpty', 'highlight', 'container', 'autoNext', 'autoOpen'].forEach(k => S[k] = q(k).checked);
   }
   const uid = () => 'p' + Date.now().toString(36);
   function openSheet() { S = load(); cur = S.presets.find(p => p.id === (sel.value || S.activePreset)) || S.presets[0]; renderSheet(); sheet.classList.add('open'); bar.style.display = 'none'; }
@@ -233,7 +287,7 @@
     f.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;border:0;z-index:2147483640;background:#fff;opacity:0';
     document.body.insertBefore(f, host);
     let started = false;
-    const giveUp = () => { f.remove(); frame = null; toast('Tradehack wouldn\'t open in container mode, so the bar only stays on this page. Run tmvfill again after changing pages.', true); };
+    const giveUp = () => { f.remove(); frame = null; onPageLoad(document, location.href); toast('Tradehack wouldn\'t open in container mode, so the bar only stays on this page. Run tmvfill again after changing pages.', true); };
     const timer = setTimeout(() => { if (!started) giveUp(); }, 20000);
     f.addEventListener('load', () => {
       let d, href;
@@ -254,8 +308,9 @@
       // links that would break out of the frame stay inside it instead
       d.addEventListener('click', e => { const a = e.target.closest && e.target.closest('a[target="_top"],a[target="_parent"]'); if (a) a.target = '_self'; }, true);
       d.querySelectorAll('form[target="_top"],form[target="_parent"]').forEach(x => x.target = '_self');
+      onPageLoad(d, href);
     });
   }
   if (S.container !== false && window.top === window) { toast('Starting container mode…'); startContainer(); }
-  else toast(findForm() ? 'TMV Fill ready — tap ⚡ Fill.' : 'TMV Fill ready. Open a device test popup, then tap ⚡ Fill.');
+  else onPageLoad(document, location.href), toast(findForm() ? 'TMV Fill ready — tap ⚡ Fill.' : 'TMV Fill ready. Open a device test popup, then tap ⚡ Fill.');
 } catch (e) { alert('TMV Fill error: ' + (e && e.message)); } })();
