@@ -11,7 +11,7 @@
     ['Sign-off', [['result','Test result','r',[['auto','Auto (from limits)'],...PF]],['valve_tested_by','Valve tested by','t'],['plumbers_licence_number','Licence number','t'],['comments','Comments','a']]],
   ];
   const FIELDS = GROUPS.flatMap(g => g[1]);
-  const DEF = { activePreset: 'standard', onlyEmpty: false, dateToday: true, highlight: true, maxMixed: 45, maxSpike: 46,
+  const DEF = { activePreset: 'standard', onlyEmpty: false, dateToday: true, highlight: true, container: true, maxMixed: 45, maxSpike: 46,
     presets: [{ id: 'standard', name: 'Standard service – 42.5°C', values: {
       strainer:'checked', non_return_valves:'checked', o_rings_and_seals:'checked', thermostatic_element:'checked', replacement_valve:'no',
       temperature_set_at:'42.5', hot_water_temp:'65', cold_water_temp:'18', mixed_water_temp:'42.5', mixed_min_flow:'42.5', mixed_max_flow:'43', spike_test:'44',
@@ -23,13 +23,14 @@
   const esc = t => String(t).replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
 
   // ---------- filling ----------
+  let frame = null; // set when container mode is running
   const findForm = () => {
-    const docs = [document];
+    const docs = frame ? [] : [document];
     document.querySelectorAll('iframe').forEach(f => { try { if (f.contentDocument) docs.push(f.contentDocument); } catch (e) {} });
     const all = docs.flatMap(d => [...d.querySelectorAll('form.tmv_form')]);
     return all.find(f => f.offsetParent !== null) || all[0] || null;
   };
-  const fire = el => { el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); };
+  const fire = el => { const E = (el.ownerDocument.defaultView || window).Event; el.dispatchEvent(new E('input', { bubbles: true })); el.dispatchEvent(new E('change', { bubbles: true })); };
   const rv = (f, n) => { const r = f.querySelector('input[type=radio][name="' + n + '"]:checked'); return r ? r.value : ''; };
   const setR = (f, n, v, only) => {
     if (only && rv(f, n)) return false;
@@ -144,6 +145,7 @@
       + '<div class="card"><h3>Behaviour</h3>'
       + '<label class="chk"><input type="checkbox" data-k="dateToday"' + (S.dateToday ? ' checked' : '') + '> Set Date of Test to today</label>'
       + '<label class="chk"><input type="checkbox" data-k="onlyEmpty"' + (S.onlyEmpty ? ' checked' : '') + '> Only fill empty fields</label>'
+      + '<label class="chk"><input type="checkbox" data-k="container"' + (S.container !== false ? ' checked' : '') + '> Keep the bar between pages (container mode)</label>'
       + '<label class="chk"><input type="checkbox" data-k="highlight"' + (S.highlight ? ' checked' : '') + '> Highlight filled readings in yellow</label></div>'
       + '<div class="card"><h3>Backup / copy between devices</h3><div class="row"><button data-a="exp">Copy settings</button><button data-a="imp">Paste settings</button><button data-a="reset" class="danger">Reset</button></div>'
       + '<label style="margin-top:10px">Settings text<textarea data-k="json" placeholder="Paste copied settings here, then tap Paste settings"></textarea></label></div>';
@@ -156,7 +158,7 @@
     if (q('def').checked) S.activePreset = cur.id;
     S.maxMixed = parseFloat(q('maxMixed').value) || 45;
     S.maxSpike = parseFloat(q('maxSpike').value) || 46;
-    ['dateToday', 'onlyEmpty', 'highlight'].forEach(k => S[k] = q(k).checked);
+    ['dateToday', 'onlyEmpty', 'highlight', 'container'].forEach(k => S[k] = q(k).checked);
   }
   const uid = () => 'p' + Date.now().toString(36);
   function openSheet() { S = load(); cur = S.presets.find(p => p.id === (sel.value || S.activePreset)) || S.presets[0]; renderSheet(); sheet.classList.add('open'); bar.style.display = 'none'; }
@@ -180,5 +182,37 @@
   $('.cog').addEventListener('click', openSheet);
   $('.x').addEventListener('click', () => { host.style.display = 'none'; });
   window.__tmvf = { toggle() { host.style.display = host.style.display === 'none' ? '' : 'none'; if (host.style.display === '') fill(); }, fill };
-  toast(findForm() ? 'TMV Fill ready — tap ⚡ Fill.' : 'TMV Fill ready. Open a device test popup, then tap ⚡ Fill.');
+  // ---------- container mode: reload Tradehack inside a same-site frame so the bar survives page changes ----------
+  function startContainer() {
+    const f = document.createElement('iframe');
+    f.src = location.href;
+    f.setAttribute('allow', 'geolocation; camera; clipboard-write');
+    f.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;border:0;z-index:2147483640;background:#fff;opacity:0';
+    document.body.insertBefore(f, host);
+    let started = false;
+    const giveUp = () => { f.remove(); frame = null; toast('Tradehack wouldn\'t open in container mode, so the bar only stays on this page. Run tmvfill again after changing pages.', true); };
+    const timer = setTimeout(() => { if (!started) giveUp(); }, 20000);
+    f.addEventListener('load', () => {
+      let d, href;
+      try { d = f.contentDocument; href = f.contentWindow.location.href; } catch (e) { d = null; }
+      if (!d || !href || href === 'about:blank' || !href.startsWith(location.origin)) { if (!started) { clearTimeout(timer); giveUp(); } else { toast('That page opened outside Tradehack. Use Back to return.', true); } return; }
+      if (!started) {
+        started = true; clearTimeout(timer); frame = f;
+        // clear the original page so there's only one copy of Tradehack running
+        [...document.body.children].forEach(c => { if (c !== f && c !== host) c.remove(); });
+        document.documentElement.style.overflow = document.body.style.overflow = 'hidden';
+        document.body.style.margin = '0';
+        f.style.opacity = '1';
+        toast('Container mode on: the bar stays as you move around Tradehack. Refreshing the page turns it off.');
+      }
+      // keep the address bar and tab title in step with the page inside
+      try { history.replaceState(null, '', href); } catch (e) {}
+      document.title = d.title;
+      // links that would break out of the frame stay inside it instead
+      d.addEventListener('click', e => { const a = e.target.closest && e.target.closest('a[target="_top"],a[target="_parent"]'); if (a) a.target = '_self'; }, true);
+      d.querySelectorAll('form[target="_top"],form[target="_parent"]').forEach(x => x.target = '_self');
+    });
+  }
+  if (S.container !== false && window.top === window) { toast('Starting container mode…'); startContainer(); }
+  else toast(findForm() ? 'TMV Fill ready — tap ⚡ Fill.' : 'TMV Fill ready. Open a device test popup, then tap ⚡ Fill.');
 } catch (e) { alert('TMV Fill error: ' + (e && e.message)); } })();
