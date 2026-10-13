@@ -11,7 +11,7 @@
     ['Sign-off', [['result','Test result','r',[['auto','Auto (from limits)'],...PF]],['valve_tested_by','Valve tested by','t'],['plumbers_licence_number','Licence number','t'],['comments','Comments','a']]],
   ];
   const FIELDS = GROUPS.flatMap(g => g[1]);
-  const DEF = { activePreset: 'standard', onlyEmpty: false, dateToday: true, highlight: true, container: true, autoNext: true, autoOpen: false, maxMixed: 45, maxSpike: 46,
+  const DEF = { activePreset: 'standard', onlyEmpty: false, dateToday: true, highlight: true, container: true, autoNext: true, autoOpen: false, openValveId: true, maxMixed: 45, maxSpike: 46,
     presets: [{ id: 'standard', name: 'Standard service – 42.5°C', values: {
       strainer:'checked', non_return_valves:'checked', o_rings_and_seals:'checked', thermostatic_element:'checked', replacement_valve:'no',
       temperature_set_at:'42.5', hot_water_temp:'65', cold_water_temp:'18', mixed_water_temp:'42.5', mixed_min_flow:'42.5', mixed_max_flow:'43', spike_test:'44',
@@ -116,6 +116,24 @@
     const b = lastCard && lastCard.isConnected && [...lastCard.querySelectorAll('a,button')].find(x => /^\s*test\s*$/i.test(x.textContent));
     if (b) b.click();
   }
+
+  // ---------- when the test popup opens, open the Valve Identification section too ----------
+  // (set the class directly: Tradehack's accordion would otherwise close the Testing section)
+  function expandValveId(f) {
+    const loc = f.querySelector('[name="location"]'), c = loc && loc.closest('.panel-collapse,.collapse');
+    if (!c || c.classList.contains('in')) return;
+    c.classList.add('in'); c.style.height = ''; c.setAttribute('aria-expanded', 'true');
+    f.ownerDocument.querySelectorAll('[href$="#' + c.id + '"],[data-target="#' + c.id + '"]').forEach(a => { a.classList.remove('collapsed'); a.setAttribute('aria-expanded', 'true'); });
+  }
+  setInterval(() => {
+    if (S.openValveId === false) return;
+    const d = curDoc(); if (!d) return;
+    d.querySelectorAll('form.tmv_form').forEach(f => {
+      const shown = f.offsetParent !== null;
+      if (shown && !f.__tmvfShown) expandValveId(f);
+      f.__tmvfShown = shown;
+    });
+  }, 500);
 
   // ---------- after Complete Test: jump to the next valve automatically ----------
   let pending = 0, goingBack = false, scheduleUrl = null;
@@ -226,6 +244,7 @@
       + '<div class="card"><h3>Behaviour</h3>'
       + '<label class="chk"><input type="checkbox" data-k="dateToday"' + (S.dateToday ? ' checked' : '') + '> Set Date of Test to today</label>'
       + '<label class="chk"><input type="checkbox" data-k="onlyEmpty"' + (S.onlyEmpty ? ' checked' : '') + '> Only fill empty fields</label>'
+      + '<label class="chk"><input type="checkbox" data-k="openValveId"' + (S.openValveId !== false ? ' checked' : '') + '> Open Valve Identification when the test popup opens</label>'
       + '<label class="chk"><input type="checkbox" data-k="autoNext"' + (S.autoNext !== false ? ' checked' : '') + '> After Complete Test, jump to the next Not Yet Tested valve</label>'
       + '<label class="chk"><input type="checkbox" data-k="autoOpen"' + (S.autoOpen ? ' checked' : '') + '> …and open its Test popup</label>'
       + '<label class="chk"><input type="checkbox" data-k="container"' + (S.container !== false ? ' checked' : '') + '> Keep the bar between pages (container mode)</label>'
@@ -241,7 +260,7 @@
     if (q('def').checked) S.activePreset = cur.id;
     S.maxMixed = parseFloat(q('maxMixed').value) || 45;
     S.maxSpike = parseFloat(q('maxSpike').value) || 46;
-    ['dateToday', 'onlyEmpty', 'highlight', 'container', 'autoNext', 'autoOpen'].forEach(k => S[k] = q(k).checked);
+    ['dateToday', 'onlyEmpty', 'highlight', 'container', 'autoNext', 'autoOpen', 'openValveId'].forEach(k => S[k] = q(k).checked);
   }
   const uid = () => 'p' + Date.now().toString(36);
   function openSheet() { S = load(); cur = S.presets.find(p => p.id === (sel.value || S.activePreset)) || S.presets[0]; renderSheet(); sheet.classList.add('open'); bar.style.display = 'none'; }
